@@ -1,0 +1,120 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--nav-h) + 38px + 20px) 20px 40px;
+  background: var(--g100);
+}
+
+.card {
+  background: var(--blanco);
+  width: 100%;
+  max-width: 440px;
+  padding: 52px 44px;
+  box-shadow: 0 2px 40px rgba(0, 0, 0, 0.06);
+}
+
+.logo {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 300;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.sub {
+  font-size: 12px;
+  color: var(--g400);
+  text-align: center;
+  letter-spacing: 0.06em;
+  margin-bottom: 32px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.forgot {
+  text-align: right;
+}
+
+.forgot a {
+  font-size: 11px;
+  color: var(--g400);
+  transition: color 0.2s;
+}
+
+.forgot a:hover {
+  color: var(--dorado);
+}
+
+.error {
+  color: var(--rojo);
+  font-size: 12px;
+  background: rgba(168, 50, 50, 0.06);
+  padding: 10px 14px;
+}
+
+.switch {
+  text-align: center;
+  font-size: 12px;
+  color: var(--g400);
+  margin-top: 20px;
+}
+
+.successBox {
+  background: rgba(46, 107, 72, .08);
+  border-left: 2px solid var(--verde);
+  color: var(--verde);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.backLink {
+  font-size: 10.5px;
+  color: var(--verde);
+  letter-spacing: .1em;
+}
+
+.errorMsg {
+  color: var(--rojo);
+  font-size: 12px;
+  background: rgba(168, 50, 50, .06);
+  padding: 10px 14px;
+}
+
+
+.switch a {
+  color: var(--negro);
+  font-weight: 500;
+  border-bottom: 1px solid var(--negro);
+  padding-bottom: 1px;
+  transition: color 0.2s;
+}
+
+.switch a:hover {
+  color: var(--dorado);
+  border-bottom-color: var(--dorado);
+}

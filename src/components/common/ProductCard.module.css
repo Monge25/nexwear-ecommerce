@@ -1,0 +1,127 @@
+.card { cursor: default; }
+
+/* Image */
+.imgWrap {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3/4;
+  background: var(--g100);
+}
+.imgInner {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.8s var(--ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card:hover .imgInner { transform: scale(1.04); }
+.img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.placeholder span {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  color: rgba(184,151,90,0.3);
+  font-style: italic;
+}
+
+/* Badges */
+.badges { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 2; }
+.badge  { font-size: 8px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 8px; }
+.new    { background: var(--dorado); color: #fff; }
+.sale   { background: var(--rojo);   color: #fff; }
+
+/* Wishlist */
+.wishBtn {
+  position: absolute;
+  top: 10px; right: 10px;
+  width: 32px; height: 32px;
+  background: rgba(248,246,242,0.88);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.25s, background 0.25s, color 0.25s;
+  z-index: 2;
+}
+.card:hover .wishBtn { opacity: 1; }
+.wishBtn.liked { opacity: 1; background: var(--negro); color: var(--blanco); }
+.wishBtn:hover { background: var(--negro); color: var(--blanco); }
+
+/* Actions */
+.actions {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 10px;
+  background: linear-gradient(to top, rgba(0,0,0,0.4), transparent);
+  display: flex;
+  gap: 6px;
+  transform: translateY(100%);
+  transition: transform 0.35s var(--ease);
+  z-index: 2;
+}
+.card:hover .actions { transform: translateY(0); }
+
+.addBtn {
+  flex: 1;
+  background: rgba(248,246,242,0.95);
+  border: none;
+  padding: 11px;
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.25s, color 0.25s;
+}
+.addBtn:hover { background: var(--negro); color: var(--blanco); }
+
+.detBtn {
+  width: 40px;
+  background: rgba(248,246,242,0.95);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: background 0.25s, color 0.25s;
+}
+.detBtn:hover { background: var(--negro); color: var(--blanco); }
+
+/* Info */
+.info    { padding: 14px 0 20px; }
+.cat     { font-size: 8px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--g400); margin-bottom: 5px; }
+.name    {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 400;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  line-height: 1.25;
+}
+.name:hover { opacity: 0.65; }
+
+/* Swatches */
+.swatches { display: flex; gap: 5px; margin-top: 9px; }
+.swatch   {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.swatch:hover       { transform: scale(1.25); }
+.swatchActive       { border-color: var(--negro); transform: scale(1.2); }

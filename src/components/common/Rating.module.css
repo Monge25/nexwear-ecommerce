@@ -1,0 +1,6 @@
+.wrap  { display: flex; align-items: center; gap: 8px; }
+.stars { display: flex; gap: 1px; }
+.star  { color: var(--dorado); line-height: 1; }
+.sm .star  { font-size: 12px; }
+.md .star  { font-size: 16px; }
+.count { font-size: 11px; color: var(--g400); letter-spacing: 0.04em; }

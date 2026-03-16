@@ -1,0 +1,16 @@
+.container {
+    width: 100%;
+    max-width: var(--max-w);
+    margin: 0 auto;
+    padding: 0 52px;
+}
+
+.narrow {
+    max-width: 880px;
+}
+
+@media(max-width: 768px) {
+    .container {
+        padding: 0 20px;
+    }
+}
