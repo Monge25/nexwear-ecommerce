@@ -73,8 +73,8 @@ const ProductDetail: React.FC = () => {
             className={styles.mainImg}
             style={{ background: selectedColor.hex }}
           >
-            {product.images[activeImg] ? (
-              <img src={product.images[activeImg]} alt={product.name} />
+            {product.imageUrl[activeImg] ? (
+                <img src={product.imageUrl[activeImg]} alt={product.name} />
             ) : (
               <div className={styles.imgPlaceholder}>
                 <span>NEXWEAR</span>
@@ -82,7 +82,7 @@ const ProductDetail: React.FC = () => {
             )}
           </div>
           <div className={styles.thumbs}>
-            {(product.images.length > 0 ? product.images : ["", "", ""]).map(
+            {(product.imageUrl.length > 0 ? product.imageUrl : ["", "", ""]).map(
               (img, i) => (
                 <button
                   key={i}

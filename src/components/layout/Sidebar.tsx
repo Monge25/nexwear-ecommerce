@@ -81,8 +81,8 @@ const CartSidebar: React.FC = () => {
                   className={styles.itemImg}
                   style={{ background: item.selectedColor.hex }}
                 >
-                  {item.product.images[0] && (
-                    <img src={item.product.images[0]} alt={item.product.name} />
+                  {item.product.imageUrl && (
+                    <img src={item.product.imageUrl} alt={item.product.name} />
                   )}
                 </div>
                 <div className={styles.itemInfo}>
