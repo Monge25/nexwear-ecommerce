@@ -16,7 +16,6 @@ const Navbar: React.FC = () => {
 
   const navigate = useNavigate();
   const isAdmin = isAuthenticated && user?.role === "Admin";
-  console.log("Usuario autenticado:", isAuthenticated, "Rol:", user?.role);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
 
