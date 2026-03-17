@@ -23,7 +23,7 @@ function normaliseProduct(raw: Record<string, unknown>): Product {
     originalPrice: raw.originalPrice != null ? Number(raw.originalPrice) : raw.comparePrice != null ? Number(raw.comparePrice) : undefined,
     isNew:         Boolean(raw.isNew ?? raw.is_new ?? false),
     isSale:        Boolean(raw.isSale ?? raw.is_sale ?? raw.onSale ?? false),
-    images:        (Array.isArray(raw.images) ? raw.images : raw.image ? [raw.image] : []) as string[],
+    imageUrl:        raw.imageUrl ? String(raw.imageUrl) :  '',
     colors,
     sizes:         sizes as Product['sizes'],
     material:      String(raw.material ?? raw.fabric ?? ''),

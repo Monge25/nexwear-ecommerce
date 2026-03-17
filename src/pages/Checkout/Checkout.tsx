@@ -291,8 +291,8 @@ const Checkout: React.FC = () => {
                 className={styles.sumImg}
                 style={{ background: item.selectedColor.hex }}
               >
-                {item.product.images[0] && (
-                  <img src={item.product.images[0]} alt="" />
+                {item.product.imageUrl && (
+                  <img src={item.product.imageUrl} alt="" />
                 )}
                 <span className={styles.sumQty}>{item.quantity}</span>
               </div>

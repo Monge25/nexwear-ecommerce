@@ -42,8 +42,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
           className={styles.imgInner}
           style={{ background: product.colors[activeColor]?.hex ?? '#f2f0ec' }}
         >
-          {product.images[0] ? (
-            <img src={product.images[0]} alt={product.name} className={styles.img} />
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt={product.name} className={styles.img} />
           ) : (
             <div className={styles.placeholder}>
               <span>NEXWEAR</span>

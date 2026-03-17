@@ -8,7 +8,7 @@ export interface Product {
   originalPrice?: number
   isNew: boolean
   isSale: boolean
-  images: string[]
+  imageUrl: string
   colors: ProductColor[]
   sizes: Size[]
   material: string

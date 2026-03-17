@@ -53,7 +53,7 @@ const blankProduct = (): Partial<Product> => ({
   originalPrice: undefined,
   isNew: false,
   isSale: false,
-  images: [],
+  imageUrl: '',
   colors: [],
   sizes: [],
   material: "",
