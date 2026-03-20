@@ -1,0 +1,168 @@
+/* ── Card ── */
+.card {
+    position: relative;
+    cursor: pointer;
+    background: var(--g100, #f5f5f5);
+    display: block;
+    /* Sin border-radius — estilo Massimo Dutti es cuadrado */
+}
+
+/* ── Imagen ── */
+.imgWrap {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+}
+
+.img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    display: block;
+    transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.card:hover .img {
+    transform: scale(1.04);
+}
+
+.placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.placeholder span {
+    font-family: var(--font-display);
+    font-size: 9px;
+    letter-spacing: 0.4em;
+    color: rgba(0, 0, 0, 0.2);
+    text-transform: uppercase;
+}
+
+/* ── Badges ── */
+.badges {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.badge {
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 3px 7px;
+}
+
+.badgeNew {
+    background: var(--negro, #0a0a0a);
+    color: #fff;
+}
+
+.badgeSale {
+    background: var(--rojo, #8c2020);
+    color: #fff;
+}
+
+/* ── Wishlist — esquina superior derecha ── */
+.wishBtn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(6px);
+    color: var(--g500, #6e6e6e);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s, transform 0.2s;
+    /* Siempre visible, como en la screenshot */
+}
+
+.wishBtn:hover {
+    background: #fff;
+    color: var(--negro, #0a0a0a);
+    transform: scale(1.08);
+}
+
+.wishOn {
+    color: var(--negro, #0a0a0a) !important;
+    background: #fff !important;
+}
+
+/* ── Bottom bar — "Añadir a la bolsa" ── */
+.bottomBar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    display: flex;
+    /* Oculto por defecto, aparece en hover */
+    transform: translateY(100%);
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.25s;
+}
+
+.card:hover .bottomBar {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* Botón principal "Añadir a la bolsa" */
+.addToBag {
+    flex: 1;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    font-family: var(--font-body, 'DM Sans', sans-serif);
+    font-size: 8.5px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--negro, #0a0a0a);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.addToBag:hover {
+    background: rgba(255, 255, 255, 1);
+}
+
+/* Botón expandir / ver detalle */
+.expandBtn {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-left: 1px solid rgba(0, 0, 0, 0.08);
+    color: var(--negro, #0a0a0a);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+
+.expandBtn:hover {
+    background: rgba(255, 255, 255, 1);
+}

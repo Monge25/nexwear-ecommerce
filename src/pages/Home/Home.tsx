@@ -188,7 +188,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* SHOP THE LOOK */}
+      {/* SHOP THE LOOK
       <section className={styles.looks}>
         <div className={styles.secHeader}>
           <h2 className={styles.secTitle}>
@@ -242,7 +242,7 @@ const Home: React.FC = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ── Categories ── */}
       <section className={styles.cats}>
@@ -307,7 +307,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* TRENDING */}
+      {/* TRENDING
       <section className={styles.trending1}>
         <div className={styles.secHeader}>
           <h2 className={styles.secTitle}>
@@ -322,7 +322,7 @@ const Home: React.FC = () => {
             <ProductCard key={p.id} product={p} onAddToCart={handleQuickAdd} />
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* TRENDING */}
       <section className={styles.trending}>

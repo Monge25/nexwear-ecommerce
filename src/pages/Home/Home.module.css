@@ -367,7 +367,7 @@
   font-size: 8px;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgb(255, 255, 255);
   margin-bottom: 2px;
 }
 
@@ -417,7 +417,7 @@
 }
 
 .edText {
-  background: var(--crema);
+  background: var(--blanco);
   padding: 72px 60px;
   display: flex;
   flex-direction: column;
@@ -616,54 +616,55 @@
     grid-template-columns: 1fr;
     gap: 36px;
   }
+
   .categories {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  grid-template-rows: 250px 250px;
-  gap: 20px;
-}
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-rows: 250px 250px;
+    gap: 20px;
+  }
 
-.card {
-  position: relative;
-  background-size: cover;
-  background-position: center;
-  border-radius: 6px;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
-  transition: transform .4s;
-}
+  .card {
+    position: relative;
+    background-size: cover;
+    background-position: center;
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    transition: transform .4s;
+  }
 
-.card:hover {
-  transform: scale(1.05);
-}
+  .card:hover {
+    transform: scale(1.05);
+  }
 
-.big {
-  grid-row: span 2;
-}
+  .big {
+    grid-row: span 2;
+  }
 
-.overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-}
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+  }
 
-.text {
-  position: relative;
-  color: white;
-  padding: 20px;
-}
+  .text {
+    position: relative;
+    color: white;
+    padding: 20px;
+  }
 
-.text span {
-  font-size: 12px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  opacity: 0.8;
-}
+  .text span {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
 
-.text h3 {
-  font-size: 28px;
-}
+  .text h3 {
+    font-size: 28px;
+  }
 }
 
 .banner {
@@ -741,7 +742,6 @@
 }
 
 /* ── Shop the Look ── */
-
 .looks {
   padding: 90px 52px;
   background: var(--blanco);
@@ -785,7 +785,7 @@
   bottom: 0;
   width: 100%;
   padding: 20px;
-  background: linear-gradient(to top, rgba(0,0,0,.7), transparent);
+  background: linear-gradient(to top, rgba(0, 0, 0, .7), transparent);
   color: white;
 }
 
@@ -801,9 +801,9 @@
   text-transform: uppercase;
   opacity: .8;
 }
+
 /* ── Responsive mejoras ── */
 @media (max-width: 768px) {
-
   .banner {
     height: 50vh;
   }
@@ -823,13 +823,11 @@
   .trending {
     padding: 52px 20px;
   }
-
 }
 
 /* ── Sale Banner ── */
-
 .saleBanner {
-  background:var(--negro);
+  background: var(--negro);
   padding: 100px 60px;
 }
 
@@ -855,7 +853,7 @@
 .saleSub {
   margin-top: 16px;
   font-size: 14px;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .saleBtn {
@@ -873,4 +871,3 @@
 .saleBtn:hover {
   background: #b48d50;
 }
-

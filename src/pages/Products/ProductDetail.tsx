@@ -16,22 +16,20 @@ import styles from "./ProductDetail.module.css";
 
 const ProductDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const { addItem } = useCart();
 
-  const [activeImg, setActiveImg] = useState(0);
   const [activeColor, setColor] = useState<ProductColor | null>(null);
-  const [activeSize, setSize] = useState<Size | null>(null);
-  const [sizeError, setSizeError] = useState(false);
-  const [adding, setAdding] = useState(false);
+  const [activeSize,  setSize]  = useState<Size | null>(null);
+  const [sizeError,   setSizeError] = useState(false);
+  const [adding,      setAdding]    = useState(false);
 
   const { data: product, loading } = useFetch(
     () => productService.getProductBySlug(slug!),
     [slug],
   );
   const { data: related } = useFetch(
-    () =>
-      product ? productService.getRelated(product.id) : Promise.resolve([]),
+    () => product ? productService.getRelated(product.id) : Promise.resolve([]),
     [product?.id],
   );
 
@@ -47,133 +45,119 @@ const ProductDetail: React.FC = () => {
       </div>
     );
 
-  const selectedColor = activeColor ?? product.colors[0];
+  // ── imageUrl es string (no array) — la API devuelve una sola imagen ─────────
+  const imageUrl = product.imageUrl ?? "";
+
+  // ── Colores y tallas con fallback seguro ─────────────────────────────────────
+  const colors = Array.isArray(product.colors) && product.colors.length > 0
+    ? product.colors
+    : [{ name: "Negro", hex: "#0a0a0a" }];
+
+  const sizes = Array.isArray(product.sizes) && product.sizes.length > 0
+    ? product.sizes
+    : [];
+
+  const selectedColor = activeColor ?? colors[0];
 
   const handleAdd = async () => {
-    if (!isAuthenticated) {
-      setAuthOpen(true);
-      return;
-    }
-    if (!activeSize) {
-      setSizeError(true);
-      return;
-    }
+    if (!isAuthenticated) { setAuthOpen(true); return; }
+    if (!activeSize)      { setSizeError(true); return; }
     setSizeError(false);
     setAdding(true);
     addItem(product, 1, activeSize, selectedColor);
     setTimeout(() => setAdding(false), 600);
   };
 
+  // ── Productos relacionados con fallback seguro ────────────────────────────────
+  const relatedProducts = Array.isArray(related) ? related : [];
+
   return (
     <div className={styles.page}>
       <div className={styles.inner}>
-        {/* Gallery */}
+
+        {/* ── Gallery ── */}
         <div className={styles.gallery}>
-          <div
-            className={styles.mainImg}
-            style={{ background: selectedColor.hex }}
-          >
-            {product.imageUrl[activeImg] ? (
-                <img src={product.imageUrl[activeImg]} alt={product.name} />
+          <div className={styles.mainImg} style={{ background: selectedColor.hex }}>
+            {imageUrl ? (
+              <img src={imageUrl} alt={product.name} />
             ) : (
               <div className={styles.imgPlaceholder}>
                 <span>NEXWEAR</span>
               </div>
             )}
           </div>
-          <div className={styles.thumbs}>
-            {(product.imageUrl.length > 0 ? product.imageUrl : ["", "", ""]).map(
-              (img, i) => (
+
+          {/* Miniaturas de colores disponibles */}
+          {colors.length > 1 && (
+            <div className={styles.thumbs}>
+              {colors.map((c, i) => (
                 <button
-                  key={i}
-                  className={`${styles.thumb} ${activeImg === i ? styles.thumbOn : ""}`}
-                  onClick={() => setActiveImg(i)}
+                  key={c.name}
+                  className={`${styles.thumb} ${selectedColor.name === c.name ? styles.thumbOn : ""}`}
+                  onClick={() => setColor(c)}
                 >
-                  {img ? (
-                    <img src={img} alt="" />
-                  ) : (
-                    <div
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        background:
-                          product.colors[i % product.colors.length]?.hex ??
-                          selectedColor.hex,
-                      }}
-                    />
-                  )}
+                  <div style={{ width: "100%", height: "100%", background: c.hex }} />
                 </button>
-              ),
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Info */}
+        {/* ── Info ── */}
         <div className={styles.info}>
           <p className={styles.breadcrumb}>
-            {product.category.charAt(0).toUpperCase() +
-              product.category.slice(1)}
+            {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
           </p>
           <h1 className={styles.name}>{product.name}</h1>
 
           <div className={styles.priceRow}>
-            <Price
-              price={product.price}
-              originalPrice={product.originalPrice}
-              size="lg"
-            />
+            <Price price={product.price} originalPrice={product.originalPrice} size="lg" />
           </div>
-          <Rating
-            value={product.rating}
-            count={product.reviewCount}
-            size="md"
-          />
+          <Rating value={product.rating} count={product.reviewCount} size="md" />
 
           <p className={styles.desc}>{product.description}</p>
 
           {/* Color */}
-          <div className={styles.optSection}>
-            <p className={styles.optLabel}>
-              Color — <span>{selectedColor.name}</span>
-            </p>
-            <div className={styles.colors}>
-              {product.colors.map((c, i) => (
-                <button
-                  key={c.name}
-                  className={`${styles.colorBtn} ${(activeColor?.name ?? product.colors[0].name) === c.name ? styles.colorOn : ""}`}
-                  style={{ background: c.hex }}
-                  title={c.name}
-                  onClick={() => {
-                    setColor(c);
-                    setActiveImg(i);
-                  }}
-                />
-              ))}
+          {colors.length > 0 && (
+            <div className={styles.optSection}>
+              <p className={styles.optLabel}>
+                Color — <span>{selectedColor.name}</span>
+              </p>
+              <div className={styles.colors}>
+                {colors.map((c) => (
+                  <button
+                    key={c.name}
+                    className={`${styles.colorBtn} ${selectedColor.name === c.name ? styles.colorOn : ""}`}
+                    style={{ background: c.hex }}
+                    title={c.name}
+                    onClick={() => setColor(c)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Size */}
           <div className={styles.optSection}>
             <p className={styles.optLabel}>
               Talla
-              <a href="#" className={styles.guideLink}>
-                Guía de tallas →
-              </a>
+              <a href="#" className={styles.guideLink}>Guía de tallas →</a>
             </p>
-            <div className={styles.sizes}>
-              {product.sizes.map((s) => (
-                <button
-                  key={s}
-                  className={`${styles.sizeBtn} ${activeSize === s ? styles.sizeOn : ""}`}
-                  onClick={() => {
-                    setSize(s);
-                    setSizeError(false);
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            {sizes.length > 0 ? (
+              <div className={styles.sizes}>
+                {sizes.map((s) => (
+                  <button
+                    key={s}
+                    className={`${styles.sizeBtn} ${activeSize === s ? styles.sizeOn : ""}`}
+                    onClick={() => { setSize(s); setSizeError(false); }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: 12, color: "var(--g400)" }}>Talla única</p>
+            )}
             {sizeError && (
               <p className={styles.sizeError}>Por favor selecciona una talla</p>
             )}
@@ -181,34 +165,19 @@ const ProductDetail: React.FC = () => {
 
           {/* CTA */}
           <div className={styles.ctas}>
-            <Button
-              variant="fill"
-              size="lg"
-              fullWidth
-              loading={adding}
-              onClick={handleAdd}
-            >
+            <Button variant="fill" size="lg" fullWidth loading={adding} onClick={handleAdd}>
               Añadir a la Bolsa
             </Button>
-            <button className={styles.wishBtn} aria-label="Favorito">
-              ♡
-            </button>
+            <button className={styles.wishBtn} aria-label="Favorito">♡</button>
           </div>
 
           {/* Shipping */}
           <div className={styles.shippingBox}>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--verde)"
-              strokeWidth="1.5"
-            >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="var(--verde)" strokeWidth="1.5">
               <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3" />
               <rect x="9" y="11" width="14" height="10" rx="1" />
-              <circle cx="12" cy="21" r="1" />
-              <circle cx="20" cy="21" r="1" />
+              <circle cx="12" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
             </svg>
             <p>
               <strong>Envío gratis</strong> en pedidos superiores a $150.
@@ -218,34 +187,36 @@ const ProductDetail: React.FC = () => {
 
           {/* Details */}
           <div className={styles.details}>
-            {[
+            {([
               ["Material", product.material],
-              ["Cuidado", product.care],
-              ["Origen", product.origin],
-              ["Stock", `${product.stock} unidades`],
-            ].map(([k, v]) => (
-              <div key={k} className={styles.detRow}>
-                <span className={styles.detKey}>{k}</span>
-                <span>{v}</span>
-              </div>
-            ))}
+              ["Cuidado",  product.care],
+              ["Origen",   product.origin],
+              ["Stock",    product.stock ? `${product.stock} unidades` : null],
+            ] as [string, string | null | undefined][])
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <div key={k} className={styles.detRow}>
+                  <span className={styles.detKey}>{k}</span>
+                  <span>{v}</span>
+                </div>
+              ))}
           </div>
         </div>
       </div>
 
       {/* Related */}
-      {related && related.length > 0 && (
+      {relatedProducts.length > 0 && (
         <section className={styles.related}>
           <h2 className={styles.relTitle}>
             También te puede <em>gustar</em>
           </h2>
           <div className={styles.relGrid}>
-            {related.slice(0, 4).map((p) => (
+            {relatedProducts.slice(0, 4).map((p) => (
               <ProductCard
                 key={p.id}
                 product={p}
                 onAddToCart={(prod) =>
-                  addItem(prod, 1, prod.sizes[0], prod.colors[0])
+                  addItem(prod, 1, prod.sizes?.[0] ?? "M", prod.colors?.[0] ?? { name: "Negro", hex: "#0a0a0a" })
                 }
               />
             ))}
@@ -254,13 +225,7 @@ const ProductDetail: React.FC = () => {
       )}
 
       {/* Reviews */}
-      <div
-        style={{
-          maxWidth: "var(--max-w)",
-          margin: "0 auto",
-          padding: "0 52px",
-        }}
-      >
+      <div style={{ maxWidth: "var(--max-w)", margin: "0 auto", padding: "0 52px" }}>
         <ReviewSection productId={product.id} />
       </div>
 
