@@ -7,9 +7,12 @@ import { CATEGORIES, SIZES } from "@/utils/constants";
 import type { Product, Order, User } from "@/types";
 import Loader from "@/components/ui/Loader";
 import styles from "./Admin.module.css";
+import { VariantManager } from "./VariantManager";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const BASE = "https://nexwearapi-production.up.railway.app/api";
+const BASE_URL = "https://nexwearapi-production.up.railway.app";
+
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pendiente",
@@ -212,16 +215,14 @@ const blankProduct = (): ProductFormData => ({
   isSale: false,
   imageUrl: "",
   imageFile: null,
-  colors: [],
-  sizes: [],
   material: "",
   description: "",
   rating: 0,
   reviewCount: 0,
   care: "",
   origin: "",
-  stock: 0,
   tags: [],
+  variants: [], // ← reemplaza colors, sizes, stock
 });
 
 const AdminProductForm: React.FC<{
@@ -241,17 +242,6 @@ const AdminProductForm: React.FC<{
       >,
     ) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const toggleSize = (s: string) =>
-    setForm((f) => {
-      const cur = (f.sizes ?? []) as string[];
-      return {
-        ...f,
-        sizes: (cur.includes(s)
-          ? cur.filter((x) => x !== s)
-          : [...cur, s]) as Product["sizes"],
-      };
-    });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -351,18 +341,6 @@ const AdminProductForm: React.FC<{
           />
           <div className={styles.hint}>Vacío si no hay oferta</div>
         </div>
-        <div className={styles.fieldWrap}>
-          <label className={styles.fieldLabel}>Stock</label>
-          <input
-            className={styles.fieldInput}
-            type="number"
-            min={0}
-            value={form.stock ?? ""}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, stock: Number(e.target.value) }))
-            }
-          />
-        </div>
       </div>
 
       {/* Image upload */}
@@ -445,22 +423,6 @@ const AdminProductForm: React.FC<{
           />
           En rebaja
         </label>
-      </div>
-
-      <div className={styles.fieldWrap}>
-        <label className={styles.fieldLabel}>Tallas disponibles</label>
-        <div className={styles.sizeChips}>
-          {SIZES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`${styles.sizeChip} ${(form.sizes ?? []).includes(s) ? styles.sizeChipOn : ""}`}
-              onClick={() => toggleSize(s)}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className={styles.formBtns}>
@@ -712,10 +674,13 @@ const ProductsSection: React.FC<{
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [createdProduct, setCreatedProduct] = useState<{   // ← NUEVO
+    id: string;
+    price: number;
+  } | null>(null);
 
   const debouncedSearch = useDebounce(search, 400);
 
-  // Build query string
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams();
     params.set("page", String(page));
@@ -739,61 +704,61 @@ const ProductsSection: React.FC<{
     (data as any)?.data ?? (Array.isArray(data) ? data : []);
   const total: number = (data as any)?.total ?? products.length;
 
-  // Reset to page 1 when search or sort changes
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, sortOrder]);
 
-  // ── Create product ──────────────────────────────────────────────────────────
+  // ── handleSave ──────────────────────────────────────────────────────────────
   const handleSave = async (body: ProductFormData) => {
     setSaving(true);
     try {
       if (body.id) {
-        // Edit flow — update existing product
+        // ── Edit flow ────────────────────────────────────────
         await apiCall(`/Products/${body.id}`, token, {
           method: "PUT",
           body: JSON.stringify({
-            name: body.name ?? "",
+            name:        body.name ?? "",
             description: body.description ?? "",
-            price: Number(body.price ?? 0),
-            originalPrice: body.originalPrice ?? null,
-            stock: Number(body.stock ?? 0),
-            category: body.category ?? "mujer",
-            material: body.material ?? "",
-            care: body.care ?? "",
-            origin: body.origin ?? "",
-            isNew: body.isNew ?? false,
-            isSale: body.isSale ?? false,
-            sizes: body.sizes ?? [],
+            price:       Number(body.price ?? 0),
+            category:    body.category ?? "mujer",
+            material:    body.material ?? "",
+            care:        body.care ?? "",
+            origin:      body.origin ?? "",
+            isNew:       body.isNew ?? false,
+            isSale:      body.isSale ?? false,
           }),
         });
 
-        // Upload image if a new file was selected
         if (body.imageFile) {
           const fd = new FormData();
           fd.append("file", body.imageFile);
-          await apiCall(`/Products/${body.id}/image`, token, {
-            method: "POST",
-            body: fd,
-          });
+          try {
+            await apiCall(`/Products/${body.id}/image`, token, {
+              method: "POST",
+              body: fd,
+            });
+          } catch (imgErr: any) {
+            show(`Producto actualizado, pero la imagen falló: ${imgErr.message}`, "error");
+          }
         }
 
         show("Producto actualizado correctamente");
+        setCreatedProduct(null);
+        setFormData(null);
+        refetch();
+
       } else {
-        // Create flow — send flat DTO that matches your API
+        // ── Create flow ──────────────────────────────────────
         const dto = {
-          name: body.name ?? "",
+          name:        body.name ?? "",
           description: body.description ?? "",
-          price: Number(body.price ?? 0),
-          originalPrice: body.originalPrice ?? null,
-          stock: Number(body.stock ?? 0),
-          category: body.category ?? "mujer",
-          material: body.material ?? "",
-          care: body.care ?? "",
-          origin: body.origin ?? "",
-          isNew: body.isNew ?? false,
-          isSale: body.isSale ?? false,
-          sizes: body.sizes ?? [],
+          price:       Number(body.price ?? 0),
+          category:    body.category ?? "mujer",
+          material:    body.material ?? "",
+          care:        body.care ?? "",
+          origin:      body.origin ?? "",
+          isNew:       body.isNew ?? false,
+          isSale:      body.isSale ?? false,
           slug:
             body.slug ??
             (body.name ?? "")
@@ -804,29 +769,16 @@ const ProductsSection: React.FC<{
               .replace(/^-+|-+$/g, ""),
         };
 
-        // Try { dto } wrapper first (what the original code used);
-        // if that fails try sending dto directly
-        let created: any;
-        try {
-          created = await apiCall<any>("/Products", token, {
-            method: "POST",
-            body: JSON.stringify({ dto }),
-          });
-        } catch {
-          created = await apiCall<any>("/Products", token, {
-            method: "POST",
-            body: JSON.stringify(dto),
-          });
-        }
+        const created = await apiCall<any>("/Products", token, {
+          method: "POST",
+          body: JSON.stringify(dto),
+        });
 
         const productId = String(
           created?.id ?? created?.data?.id ?? created?.product?.id ?? "",
         );
+        if (!productId) throw new Error("No se recibió el id del producto creado");
 
-        if (!productId)
-          throw new Error("No se recibió el id del producto creado");
-
-        // Upload image
         if (body.imageFile) {
           const fd = new FormData();
           fd.append("file", body.imageFile);
@@ -835,21 +787,16 @@ const ProductsSection: React.FC<{
               method: "POST",
               body: fd,
             });
-            show("Producto creado con imagen correctamente");
           } catch (imgErr: any) {
-            // Product saved — warn about image only
-            show(
-              `Producto creado, pero la imagen falló: ${imgErr.message}`,
-              "error",
-            );
+            show(`Producto creado, pero la imagen falló: ${imgErr.message}`, "error");
           }
-        } else {
-          show("Producto creado correctamente");
         }
-      }
 
-      setFormData(null);
-      refetch();
+        // Mostrar VariantManager debajo
+        setFormData(null);
+        setCreatedProduct({ id: productId, price: Number(body.price ?? 0) });
+        show("Producto creado. Ahora agrega las variantes.");
+      }
     } catch (e: any) {
       show("Error al guardar: " + (e.message ?? "Error desconocido"), "error");
     } finally {
@@ -876,6 +823,7 @@ const ProductsSection: React.FC<{
         <button
           className={styles.btnSm}
           onClick={() => {
+            setCreatedProduct(null);
             setFormData(blankProduct());
           }}
         >
@@ -884,31 +832,11 @@ const ProductsSection: React.FC<{
       </div>
 
       {/* ── Search + Sort bar ── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 16,
-        }}
-      >
-        {/* Search */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
         <div style={{ position: "relative", flex: 1, maxWidth: 360 }}>
           <svg
-            style={{
-              position: "absolute",
-              left: 10,
-              top: "50%",
-              transform: "translateY(-50%)",
-              pointerEvents: "none",
-              color: "#9a9a9a",
-            }}
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
+            style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#9a9a9a" }}
+            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
           >
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.35-4.35" />
@@ -922,8 +850,6 @@ const ProductsSection: React.FC<{
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-
-        {/* Sort */}
         <select
           className={styles.filterSel}
           value={sortOrder}
@@ -932,28 +858,51 @@ const ProductsSection: React.FC<{
           <option value="newest">Más recientes primero</option>
           <option value="oldest">Más antiguos primero</option>
         </select>
-
-        {/* Result count */}
         {!loading && (
-          <span
-            style={{ fontSize: 12, color: "#9a9a9a", whiteSpace: "nowrap" }}
-          >
+          <span style={{ fontSize: 12, color: "#9a9a9a", whiteSpace: "nowrap" }}>
             {total} producto{total !== 1 ? "s" : ""}
             {debouncedSearch ? ` para "${debouncedSearch}"` : ""}
           </span>
         )}
       </div>
 
-      {/* ── Product form (new / edit) ── */}
+      {/* ── Formulario nuevo / editar producto ── */}
       {formData !== null && (
         <AdminProductForm
           initial={formData}
           onSave={handleSave}
-          onCancel={() => setFormData(null)}
+          onCancel={() => {
+            setFormData(null);
+            setCreatedProduct(null);
+          }}
           saving={saving}
         />
       )}
 
+      {/* ── VariantManager — aparece después de crear un producto ── */}
+      {createdProduct && (
+        <>
+          <VariantManager
+            productId={createdProduct.id}
+            basePrice={createdProduct.price}
+            token={token}
+            apiUrl={BASE_URL}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 24 }}>
+            <button
+              className={styles.btnFill}
+              onClick={() => {
+                setCreatedProduct(null);
+                refetch();
+              }}
+            >
+              Listo, volver a la lista ✓
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ── Tabla de productos ── */}
       {loading ? (
         <Loader />
       ) : (
@@ -978,69 +927,36 @@ const ProductsSection: React.FC<{
                         <td>
                           <div className={styles.prodCell}>
                             {p.imageUrl ? (
-                              <img
-                                className={styles.prodImg}
-                                src={p.imageUrl}
-                                alt={p.name}
-                              />
+                              <img className={styles.prodImg} src={p.imageUrl} alt={p.name} />
                             ) : (
-                              <div
-                                className={styles.prodDot}
-                                style={{
-                                  background: p.colors?.[0]?.hex ?? "#f5f5f5",
-                                }}
-                              />
+                              <div className={styles.prodDot} style={{ background: "#f5f5f5" }} />
                             )}
                             <span>{p.name}</span>
                           </div>
                         </td>
-                        <td
-                          className={styles.tdNum}
-                          style={{ textTransform: "capitalize" }}
-                        >
+                        <td className={styles.tdNum} style={{ textTransform: "capitalize" }}>
                           {String(p.category ?? "")}
                         </td>
-                        <td className={styles.tdGold}>
-                          {formatPrice(p.price)}
+                        <td className={styles.tdGold}>{formatPrice(p.price)}</td>
+                        <td className={styles.tdNum}>
+                          {/* Stock total calculado de variantes */}
+                          {Array.isArray(p.variants) && p.variants.length > 0
+                            ? p.variants.reduce((acc, v) => acc + (v.stock ?? 0), 0)
+                            : "—"}
                         </td>
-                        <td className={styles.tdNum}>{p.stock ?? "—"}</td>
-                        <td
-                          style={{
-                            display: "flex",
-                            gap: 4,
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                          }}
-                        >
-                          {p.isNew && (
-                            <span
-                              className={`${styles.badge} ${styles.badgeBlue}`}
-                            >
-                              Nuevo
-                            </span>
-                          )}
-                          {p.isSale && (
-                            <span
-                              className={`${styles.badge} ${styles.badgeGreen}`}
-                            >
-                              Rebaja
-                            </span>
-                          )}
-                          {!p.isNew && !p.isSale && (
-                            <span
-                              className={`${styles.badge} ${styles.badgeGray}`}
-                            >
-                              Estándar
-                            </span>
-                          )}
+                        <td style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                          {p.isNew && <span className={`${styles.badge} ${styles.badgeBlue}`}>Nuevo</span>}
+                          {p.isSale && <span className={`${styles.badge} ${styles.badgeGreen}`}>Rebaja</span>}
+                          {!p.isNew && !p.isSale && <span className={`${styles.badge} ${styles.badgeGray}`}>Estándar</span>}
                         </td>
                         <td>
                           <div className={styles.actionBtns}>
                             <button
                               className={styles.btnEdit}
-                              onClick={() =>
-                                setFormData({ ...p, imageFile: null })
-                              }
+                              onClick={() => {
+                                setCreatedProduct(null);
+                                setFormData({ ...p, imageFile: null });
+                              }}
                             >
                               Editar
                             </button>
@@ -1057,9 +973,7 @@ const ProductsSection: React.FC<{
                   ) : (
                     <tr>
                       <td colSpan={6} className={styles.empty}>
-                        {debouncedSearch
-                          ? `Sin resultados para "${debouncedSearch}"`
-                          : "Sin productos"}
+                        {debouncedSearch ? `Sin resultados para "${debouncedSearch}"` : "Sin productos"}
                       </td>
                     </tr>
                   )}
@@ -1067,7 +981,6 @@ const ProductsSection: React.FC<{
               </table>
             </div>
           </div>
-
           <Pagination
             page={page}
             total={total}

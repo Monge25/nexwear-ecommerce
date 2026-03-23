@@ -1,24 +1,45 @@
 // ─── Product ────────────────────────────────────────────────────────────────
+export interface ProductVariant {
+  id: string
+  color?: string
+  colorHex?: string
+  size?: string
+  priceModifier: number
+  finalPrice: number
+  stock: number
+  imageUrl?: string
+  isActive: boolean
+  imageFile?: File | null
+}
+
 export interface Product {
-  id: number
+  id: string             
   name: string
   slug: string
   category: 'mujer' | 'hombre' | 'exteriores' | 'accesorios'
-  price: number
+  price: number           // precio base
   originalPrice?: number
   isNew: boolean
   isSale: boolean
   imageUrl: string
-  colors: ProductColor[]
-  sizes: Size[]
   material: string
   description: string
   rating: number
   reviewCount: number
   care: string
   origin: string
-  stock: number
   tags: string[]
+  isActive: boolean
+  createdAt?: string
+  variants: ProductVariant[]  // ← nuevo, reemplaza colors/sizes/stock
+}
+
+export type ProductFormData = Partial<Product> & {
+  imageFile?: File | null
+}
+
+export type VariantFormData = Partial<ProductVariant> & {
+  imageFile?: File | null
 }
 
 export interface ProductColor {
