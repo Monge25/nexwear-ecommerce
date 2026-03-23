@@ -1,61 +1,45 @@
 import apiClient from '@/config/axiosConfig'
-import type { Product, ProductFilters, ProductsResponse } from '@/types'
+import type { Product, ProductFilters, ProductsResponse, ProductVariant } from '@/types'
 
 /** Normalise a single product from various API shapes */
 function normaliseProduct(raw: Record<string, unknown>): Product {
-  // ── Colors ──────────────────────────────────────────────────────────────────
-  const colors = Array.isArray(raw.colors) && (raw.colors as unknown[]).length > 0
-    ? (raw.colors as Record<string, string>[]).map((c) => ({
-        name: String(c.name ?? c.color ?? 'Color'),
-        hex:  String(c.hex  ?? c.value ?? '#888'),
-      }))
-    : [{ name: 'Negro', hex: '#0a0a0a' }]
-
-  // ── Sizes ────────────────────────────────────────────────────────────────────
-  const rawSizes = raw.sizes ?? raw.size
-  const sizes = Array.isArray(rawSizes) && rawSizes.length > 0
-    ? (rawSizes as string[])
-    : typeof rawSizes === 'string' && rawSizes
-      ? [rawSizes]          // API devuelve un solo string "M"
-      : ['S', 'M', 'L']
-
-  // ── imageUrl — la API devuelve string, no array ────────────────────────────
-  const imageUrl = raw.imageUrl
-    ? String(raw.imageUrl)
-    : raw.image
-      ? String(raw.image)
-      : ''
-
   return {
-    id:            Number(raw.id ?? raw._id ?? 0),
-    name:          String(raw.name ?? raw.title ?? ''),
-    slug: String(
-      raw.slug ??
-      // Si no hay slug, usar el ID como slug — así /productos/42 siempre funciona
-      (raw.id ?? raw._id ?? String(raw.name ?? '').toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))
-    ),
+    id:            String(raw.id ?? ''),
+    name:          String(raw.name ?? ''),
+    slug:          String(raw.slug ?? String(raw.name ?? '').toLowerCase().replace(/\s+/g, '-')),
     category:      (raw.category as Product['category']) ?? 'mujer',
-    price:         Number(raw.price ?? raw.salePrice ?? 0),
-    originalPrice: raw.originalPrice != null
-      ? Number(raw.originalPrice)
-      : raw.comparePrice != null
-        ? Number(raw.comparePrice)
-        : undefined,
-    isNew:         Boolean(raw.isNew ?? raw.is_new ?? false),
-    isSale:        Boolean(raw.isSale ?? raw.is_sale ?? raw.onSale ?? false),
-    imageUrl,
-    colors,
-    sizes:         sizes as Product['sizes'],
-    material:      String(raw.material ?? raw.fabric ?? ''),
-    description:   String(raw.description ?? raw.desc ?? ''),
-    rating:        Number(raw.rating ?? raw.averageRating ?? 4.5),
-    reviewCount:   Number(raw.reviewCount ?? raw.reviews ?? raw.numReviews ?? 0),
-    care:          String(raw.care ?? raw.careInstructions ?? ''),
-    origin:        String(raw.origin ?? raw.madeIn ?? ''),
-    stock:         Number(raw.stock ?? raw.quantity ?? raw.countInStock ?? 99),
+    price:         Number(raw.price ?? raw.basePrice ?? 0),
+    originalPrice: raw.originalPrice != null ? Number(raw.originalPrice) : undefined,
+    isNew:         Boolean(raw.isNew ?? false),
+    isSale:        Boolean(raw.isSale ?? false),
+    imageUrl:      raw.imageUrl ? String(raw.imageUrl) : '',
+    material:      String(raw.material ?? ''),
+    description:   String(raw.description ?? ''),
+    rating:        Number(raw.rating ?? 4.5),
+    reviewCount:   Number(raw.reviewCount ?? 0),
+    care:          String(raw.care ?? ''),
+    origin:        String(raw.origin ?? ''),
+    //stock:         0,  // ya no viene directo, se calcula de variantes
     tags:          Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
+    isActive:      Boolean(raw.isActive ?? true),
+    createdAt:     raw.createdAt ? String(raw.createdAt) : undefined,
+    variants:      Array.isArray(raw.variants)
+      ? (raw.variants as Record<string, unknown>[]).map(normaliseVariant)
+      : [],
+  }
+}
+
+function normaliseVariant(raw: Record<string, unknown>): ProductVariant {
+  return {
+    id:            String(raw.id ?? ''),
+    color:         raw.color ? String(raw.color) : undefined,
+    colorHex:      raw.colorHex ? String(raw.colorHex) : undefined,
+    size:          raw.size ? String(raw.size) : undefined,
+    priceModifier: Number(raw.priceModifier ?? 0),
+    finalPrice:    Number(raw.finalPrice ?? raw.price ?? 0),
+    stock:         Number(raw.stock ?? 0),
+    imageUrl:      raw.imageUrl ? String(raw.imageUrl) : undefined,
+    isActive:      Boolean(raw.isActive ?? true),
   }
 }
 
@@ -108,7 +92,7 @@ const productService = {
       const all = normaliseProductsResponse(data).data
       const match = all.find(p =>
         p.slug === slug ||
-        p.id === Number(slug) ||
+        p.id === slug ||
         p.name.toLowerCase().replace(/\s+/g, '-') === slug
       )
       if (match) return match
@@ -140,7 +124,7 @@ const productService = {
     }
   },
 
-  async getRelated(productId: number): Promise<Product[]> {
+  async getRelated(productId: string): Promise<Product[]> {
     try {
       const { data } = await apiClient.get(`/Products/${productId}/related`)
       if (Array.isArray(data)) return (data as Record<string, unknown>[]).map(normaliseProduct)
