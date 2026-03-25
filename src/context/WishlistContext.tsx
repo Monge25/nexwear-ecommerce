@@ -4,7 +4,7 @@ import type { Product } from "@/types";
 interface Ctx {
   items: Product[];
   count: number;
-  has: (id: number) => boolean;
+  has: (id: string) => boolean;
   toggle: (p: Product) => void;
 }
 const WishCtx = createContext<Ctx | undefined>(undefined);
@@ -14,7 +14,7 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [items, setItems] = useState<Product[]>([]);
   const has = useCallback(
-    (id: number) => items.some((p) => p.id === id),
+    (id: string) => items.some((p) => p.id === id),
     [items],
   );
   const toggle = useCallback(

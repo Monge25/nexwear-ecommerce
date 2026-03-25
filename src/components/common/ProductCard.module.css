@@ -126,10 +126,12 @@
 .swatch:hover       { transform: scale(1.25); }
 .swatchActive       { border-color: var(--negro); transform: scale(1.2); }
 
+/* More colors indicator */
 .moreColors {
-  font-size: 11px;
-  color: #888;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--g400);
   display: flex;
   align-items: center;
-  padding: 0 4px;
+  padding-left: 2px;
 }

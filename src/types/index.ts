@@ -13,11 +13,11 @@ export interface ProductVariant {
 }
 
 export interface Product {
-  id: string             
+  id: string
   name: string
   slug: string
   category: 'mujer' | 'hombre' | 'exteriores' | 'accesorios'
-  price: number           // precio base
+  price: number
   originalPrice?: number
   isNew: boolean
   isSale: boolean
@@ -31,7 +31,10 @@ export interface Product {
   tags: string[]
   isActive: boolean
   createdAt?: string
-  variants: ProductVariant[]  // ← nuevo, reemplaza colors/sizes/stock
+  stock?: number
+  sizes?: Size[]
+  colors?: ProductColor[]
+  variants: ProductVariant[]
 }
 
 export type ProductFormData = Partial<Product> & {

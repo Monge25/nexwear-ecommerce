@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Product } from '@/types'
+import type { Product, ProductVariant } from '@/types'
 import Price from './Price'
 import AuthModal from './AuthModal'
 import { useAuth } from '@/hooks/useAuth'
@@ -11,34 +11,46 @@ interface ProductCardProps {
   onAddToCart?: (product: Product) => void
 }
 
+// Agrupa variantes por color → un swatch por color único
+function groupByColor(variants: ProductVariant[]) {
+  const map = new Map<string, { colorHex: string; imageUrl: string; variants: ProductVariant[] }>()
+  for (const v of variants) {
+    if (!v.isActive) continue
+    if (!map.has(v.color)) {
+      map.set(v.color, { colorHex: v.colorHex, imageUrl: v.imageUrl, variants: [] })
+    }
+    map.get(v.color)!.variants.push(v)
+  }
+  return Array.from(map.entries()).map(([color, data]) => ({ color, ...data }))
+}
+
 const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
-  const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const [liked, setLiked] = useState(false);
-  const [activeVariantIndex, setActiveVariantIndex] = useState(0);
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authReason, setAuthReason] = useState("");
- 
-  // ── Extraer colores únicos de las variantes ───────────────
-  // Agrupa por color para no repetir el mismo color varias veces
-  // (una variante Rojo S y Rojo M = un solo swatch Rojo)
-  const colorVariants = product.variants
-    ? product.variants
-        .filter((v) => v.isActive && v.colorHex)
-        .reduce<typeof product.variants>((acc, v) => {
-          const exists = acc.find((x) => x.colorHex === v.colorHex);
-          return exists ? acc : [...acc, v];
-        }, [])
-    : [];
- 
-  const activeVariant = colorVariants[activeVariantIndex];
- 
-  // Imagen activa: la de la variante seleccionada o la del producto base
-  const activeImage = activeVariant?.imageUrl ?? product.imageUrl;
- 
-  // Color de fondo: hex de la variante activa o gris neutro
-  const activeBg = activeVariant?.colorHex ?? "#f2f0ec";
- 
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
+  const [liked, setLiked] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [authReason, setAuthReason] = useState('')
+
+  const [variants, setVariants] = useState<ProductVariant[]>([])
+  const [activeColorIdx, setActiveColorIdx] = useState(0)
+  const [loadingVariants, setLoadingVariants] = useState(true)
+
+  useEffect(() => {
+    if (!product.id) return
+    fetch(`https://nexwearapi-production.up.railway.app/api/products/${product.id}/variants`)
+      .then((r) => r.json())
+      .then((data: ProductVariant[]) => setVariants(data))
+      .catch(() => {}) // silencioso, usa fallback
+      .finally(() => setLoadingVariants(false))
+  }, [product.id])
+
+  const colorGroups = groupByColor(variants)
+  const activeGroup = colorGroups[activeColorIdx]
+
+  // Imagen activa: la de la variante del color seleccionado, o el fallback del producto
+  const activeImage = activeGroup?.imageUrl ?? product.imageUrl
+  const activeBg = activeGroup?.colorHex ?? '#f2f0ec'
+
   const requireAuth = (reason: string, action: () => void) => {
     if (!isAuthenticated) {
       setAuthReason(reason);
@@ -57,38 +69,30 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     );
  
   const handleWishlist = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    requireAuth("Inicia sesión para guardar tus favoritos", () =>
-      setLiked((v) => !v),
-    );
-  };
- 
+    e.stopPropagation()
+    requireAuth('Inicia sesión para guardar tus favoritos', () => setLiked((v) => !v))
+  }
+
+  const handleSwatchClick = (e: React.MouseEvent, idx: number) => {
+    e.stopPropagation()
+    setActiveColorIdx(idx)
+  }
+
   return (
     <article className={styles.card}>
       {/* Image */}
       <div className={styles.imgWrap}>
-        <div
-          className={styles.imgInner}
-          style={{ background: activeBg }}
-        >
-          {activeImage ? (
-            <img
-              src={activeImage}
-              alt={product.name}
-              className={styles.img}
-            />
-          ) : (
-            <div className={styles.placeholder}>
-              <span>NEXWEAR</span>
-            </div>
-          )}
+        <div className={styles.imgInner} style={{ background: activeBg }}>
+          <img
+            src={activeImage}
+            alt={activeGroup ? `${product.name} - ${activeGroup.color}` : product.name}
+            className={styles.img}
+          />
         </div>
  
         {/* Badges */}
         <div className={styles.badges}>
-          {product.isNew && (
-            <span className={`${styles.badge} ${styles.new}`}>Nuevo</span>
-          )}
+          {product.isNew && <span className={`${styles.badge} ${styles.new}`}>Nuevo</span>}
           {product.isSale && product.originalPrice && (
             <span className={`${styles.badge} ${styles.sale}`}>
               -{Math.round((1 - product.price / product.originalPrice) * 100)}%
@@ -128,30 +132,39 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         <h3 className={styles.name} onClick={handleNavigate}>
           {product.name}
         </h3>
+
+        {/* Precio: usa finalPrice de la variante activa si existe */}
         <Price
-          price={product.price}
+          price={activeGroup?.variants[0]?.finalPrice ?? product.price}
           originalPrice={product.originalPrice}
           size="sm"
         />
- 
-        {/* Swatches de color — máximo 4 */}
-        {colorVariants.length > 0 && (
+
+        {/* Swatches */}
+        {!loadingVariants && colorGroups.length > 0 && (
           <div className={styles.swatches}>
-            {colorVariants.slice(0, 4).map((v, i) => (
+            {colorGroups.slice(0, 5).map((g, i) => (
               <button
-                key={v.id}
-                className={`${styles.swatch} ${i === activeVariantIndex ? styles.swatchActive : ""}`}
-                style={{ background: v.colorHex ?? "#ccc" }}
-                title={v.color ?? ""}
-                onClick={() => setActiveVariantIndex(i)}
+                key={g.color}
+                className={`${styles.swatch} ${i === activeColorIdx ? styles.swatchActive : ''}`}
+                style={{ background: g.colorHex }}
+                title={g.color}
+                onClick={(e) => handleSwatchClick(e, i)}
+                aria-label={`Color ${g.color}`}
               />
             ))}
-            {/* Si hay más de 4 colores, mostrar contador */}
-            {colorVariants.length > 4 && (
-              <span className={styles.moreColors}>
-                +{colorVariants.length - 4}
-              </span>
+            {colorGroups.length > 5 && (
+              <span className={styles.moreColors}>+{colorGroups.length - 5}</span>
             )}
+          </div>
+        )}
+
+        {/* Skeleton swatches mientras carga */}
+        {loadingVariants && (
+          <div className={styles.swatches}>
+            {[1, 2, 3].map((n) => (
+              <span key={n} className={styles.swatchSkeleton} />
+            ))}
           </div>
         )}
       </div>
@@ -162,7 +175,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         reason={authReason}
       />
     </article>
-  );
-};
- 
-export default ProductCard;
+  )
+}
+
+export default ProductCard

@@ -5,7 +5,7 @@ import reviewService from '@/services/reviewService'
 import AuthModal from './AuthModal'
 import styles from './ReviewSection.module.css'
 
-interface Props { productId: number }
+interface Props { productId: string }
 
 const stars = (n: number) => Array.from({ length: 5 }, (_, i) => (
   <span key={i} style={{ opacity: i < n ? 1 : 0.18, color: 'var(--dorado)', fontSize: '16px' }}>★</span>

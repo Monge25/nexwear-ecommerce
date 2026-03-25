@@ -1,45 +1,67 @@
 import apiClient from '@/config/axiosConfig'
-import type { Product, ProductFilters, ProductsResponse, ProductVariant } from '@/types'
+import type { Product, ProductFilters, ProductsResponse } from '@/types'
+import type { ProductVariant } from '@/types'
 
 /** Normalise a single product from various API shapes */
 function normaliseProduct(raw: Record<string, unknown>): Product {
-  return {
-    id:            String(raw.id ?? ''),
-    name:          String(raw.name ?? ''),
-    slug:          String(raw.slug ?? String(raw.name ?? '').toLowerCase().replace(/\s+/g, '-')),
-    category:      (raw.category as Product['category']) ?? 'mujer',
-    price:         Number(raw.price ?? raw.basePrice ?? 0),
-    originalPrice: raw.originalPrice != null ? Number(raw.originalPrice) : undefined,
-    isNew:         Boolean(raw.isNew ?? false),
-    isSale:        Boolean(raw.isSale ?? false),
-    imageUrl:      raw.imageUrl ? String(raw.imageUrl) : '',
-    material:      String(raw.material ?? ''),
-    description:   String(raw.description ?? ''),
-    rating:        Number(raw.rating ?? 4.5),
-    reviewCount:   Number(raw.reviewCount ?? 0),
-    care:          String(raw.care ?? ''),
-    origin:        String(raw.origin ?? ''),
-    //stock:         0,  // ya no viene directo, se calcula de variantes
-    tags:          Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
-    isActive:      Boolean(raw.isActive ?? true),
-    createdAt:     raw.createdAt ? String(raw.createdAt) : undefined,
-    variants:      Array.isArray(raw.variants)
-      ? (raw.variants as Record<string, unknown>[]).map(normaliseVariant)
-      : [],
-  }
-}
+  // ── Colors ──────────────────────────────────────────────────────────────────
+  const colors = Array.isArray(raw.colors) && (raw.colors as unknown[]).length > 0
+    ? (raw.colors as Record<string, string>[]).map((c) => ({
+        name: String(c.name ?? c.color ?? 'Color'),
+        hex:  String(c.hex  ?? c.value ?? '#888'),
+      }))
+    : [{ name: 'Negro', hex: '#0a0a0a' }]
 
-function normaliseVariant(raw: Record<string, unknown>): ProductVariant {
+  // ── Sizes ────────────────────────────────────────────────────────────────────
+  const rawSizes = raw.sizes ?? raw.size
+  const sizes = Array.isArray(rawSizes) && rawSizes.length > 0
+    ? (rawSizes as string[])
+    : typeof rawSizes === 'string' && rawSizes
+      ? [rawSizes]
+      : ['S', 'M', 'L']
+
+  // ── imageUrl ─────────────────────────────────────────────────────────────────
+  const imageUrl = raw.imageUrl
+    ? String(raw.imageUrl)
+    : raw.image
+      ? String(raw.image)
+      : ''
+
+  // ── id como string (UUID) ────────────────────────────────────────────────────
+  const id = String(raw.id ?? raw._id ?? '')
+
   return {
-    id:            String(raw.id ?? ''),
-    color:         raw.color ? String(raw.color) : undefined,
-    colorHex:      raw.colorHex ? String(raw.colorHex) : undefined,
-    size:          raw.size ? String(raw.size) : undefined,
-    priceModifier: Number(raw.priceModifier ?? 0),
-    finalPrice:    Number(raw.finalPrice ?? raw.price ?? 0),
-    stock:         Number(raw.stock ?? 0),
-    imageUrl:      raw.imageUrl ? String(raw.imageUrl) : undefined,
-    isActive:      Boolean(raw.isActive ?? true),
+    id,
+    name:          String(raw.name ?? raw.title ?? ''),
+    slug: String(
+      raw.slug ??
+      id ??
+      String(raw.name ?? '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    ),
+    category:      (raw.category as Product['category']) ?? 'mujer',
+    price:         Number(raw.price ?? raw.salePrice ?? 0),
+    originalPrice: raw.originalPrice != null
+      ? Number(raw.originalPrice)
+      : raw.comparePrice != null
+        ? Number(raw.comparePrice)
+        : undefined,
+    isNew:         Boolean(raw.isNew ?? raw.is_new ?? false),
+    isSale:        Boolean(raw.isSale ?? raw.is_sale ?? raw.onSale ?? false),
+    imageUrl,
+    colors,
+    sizes:         sizes as Product['sizes'],
+    material:      String(raw.material ?? raw.fabric ?? ''),
+    description:   String(raw.description ?? raw.desc ?? ''),
+    rating:        Number(raw.rating ?? raw.averageRating ?? 4.5),
+    reviewCount:   Number(raw.reviewCount ?? raw.reviews ?? raw.numReviews ?? 0),
+    care:          String(raw.care ?? raw.careInstructions ?? ''),
+    origin:        String(raw.origin ?? raw.madeIn ?? ''),
+    stock:         Number(raw.stock ?? raw.quantity ?? raw.countInStock ?? 99),
+    tags:          Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
+    isActive: Boolean(raw.isActive ?? raw.active ?? true),
+  variants: Array.isArray(raw.variants) ? (raw.variants as ProductVariant[]) : [],
   }
 }
 
@@ -64,29 +86,19 @@ function normaliseProductsResponse(raw: unknown): ProductsResponse {
 
 const productService = {
   async getProducts(filters: ProductFilters = {}): Promise<ProductsResponse> {
-    // FIX: /Products con P mayúscula
     const { data } = await apiClient.get('/Products', { params: filters })
     return normaliseProductsResponse(data)
   },
 
   async getProductBySlug(slug: string): Promise<Product> {
-    // Estrategia 1: si es un ID numérico → GET /Products/{id} directo
-    if (/^\d+$/.test(slug)) {
-      try {
-        const { data } = await apiClient.get(`/Products/${slug}`)
-        const raw = (data?.product ?? data?.data ?? data) as Record<string, unknown>
-        if (raw?.id) return normaliseProduct(raw)
-      } catch { /* continuar */ }
-    }
-
-    // Estrategia 2: GET /Products/{slug} (por si la API soporta slug)
+    // Estrategia 1: GET /Products/{slug} directo (funciona con UUID o slug)
     try {
       const { data } = await apiClient.get(`/Products/${slug}`)
       const raw = (data?.product ?? data?.data ?? data) as Record<string, unknown>
       if (raw?.id && raw?.name) return normaliseProduct(raw)
     } catch { /* continuar */ }
 
-    // Estrategia 3: traer todos y filtrar localmente por slug o nombre
+    // Estrategia 2: traer todos y filtrar localmente
     try {
       const { data } = await apiClient.get('/Products', { params: { limit: 200 } })
       const all = normaliseProductsResponse(data).data
@@ -107,7 +119,6 @@ const productService = {
       if (Array.isArray(data)) return (data as Record<string, unknown>[]).map(normaliseProduct)
       return normaliseProductsResponse(data).data
     } catch {
-      // Fallback: productos más recientes
       const { data } = await apiClient.get('/Products', { params: { limit: 8, sortBy: 'newest' } })
       return normaliseProductsResponse(data).data
     }
@@ -124,6 +135,7 @@ const productService = {
     }
   },
 
+  // ── productId ahora es string (UUID) ─────────────────────────────────────────
   async getRelated(productId: string): Promise<Product[]> {
     try {
       const { data } = await apiClient.get(`/Products/${productId}/related`)
@@ -134,6 +146,22 @@ const productService = {
       return normaliseProductsResponse(data).data
         .filter((p) => p.id !== productId)
         .slice(0, 4)
+    }
+  },
+
+  // ── Variantes — productId como string (UUID) ──────────────────────────────────
+  async getVariants(productId: string): Promise<ProductVariant[]> {
+    try {
+      const { data } = await apiClient.get(`/Products/${productId}/variants`)
+      const list: unknown[] = Array.isArray(data)          ? data
+                            : Array.isArray(data?.data)     ? data.data
+                            : Array.isArray(data?.variants) ? data.variants
+                            : []
+      // La API ya devuelve el shape correcto de ProductVariant — no hace falta normalizar
+      return list as ProductVariant[]
+    } catch (e) {
+      console.warn('[Variants] failed for product', productId, e)
+      return []
     }
   },
 }

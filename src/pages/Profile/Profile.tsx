@@ -88,10 +88,10 @@ const Profile: React.FC = () => {
           </div>
           <nav className={styles.sideNav}>
             {([
-              ['orders',    '📦', 'Mis Pedidos', orders?.length ?? 0],
-              ['addresses', '📍', 'Direcciones', null],
-              ['settings',  '✏️', 'Mi Información', null],
-              ['security',  '🔒', 'Seguridad', null],
+              ['orders',    '', 'Mis Pedidos', orders?.length ?? 0],
+              ['addresses', '', 'Direcciones', null],
+              ['settings',  '', 'Mi Información', null],
+              ['security',  '', 'Seguridad', null],
             ] as [Tab, string, string, number | null][]).map(([t, icon, label, count]) => (
               <button
                 key={t}

@@ -16,7 +16,7 @@ const TrendingCard: React.FC<Props> = ({ product: p, onAddToCart }) => {
   const { has, toggle } = useWishlist();
   const [imgErr, setImgErr] = useState(false);
 
-  const liked = isAuthenticated ? has(p.id as number) : false;
+  const liked = isAuthenticated ? has(p.id) : false;
   const img = p.imageUrl && !imgErr ? p.imageUrl : null;
   const bg = p.colors?.[0]?.hex ?? "#f0ede8";
 

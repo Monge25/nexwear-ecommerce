@@ -264,14 +264,14 @@ const Home: React.FC = () => {
               label: "Mujer",
               sub: "Explorar",
               span: true,
-              image: "",
+              image: "src/public/images/banners/Looks/mujeres.png",
             },
             {
               key: "hombre",
               label: "Hombre",
               sub: "Explorar",
               span: false,
-              image: "",
+              image: "src/public/images/banners/hombres.png",
             },
             {
               key: "exteriores",
