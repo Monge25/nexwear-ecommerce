@@ -71,31 +71,36 @@
   font-style: italic;
 }
 
-/* Dots de color bajo la imagen principal */
-.colorDots {
+/* Miniaturas */
+.thumbs {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding-left: 2px;
+  flex-direction: row;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 
-.colorDot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
+.thumb {
+  width: 72px;
+  height: 90px;
+  flex-shrink: 0;
+  overflow: hidden;
   border: 2px solid transparent;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  outline: none;
+  transition: border-color 0.2s;
+  background: none;
+  padding: 0;
 }
 
-.colorDot:hover {
-  transform: scale(1.2);
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-.colorDotOn {
-  box-shadow: 0 0 0 2px var(--blanco, #fff), 0 0 0 3.5px var(--negro, #0a0a0a);
-  transform: scale(1.15);
+.thumbOn {
+  border-color: var(--negro);
 }
 
 /* ── Info ── */
@@ -103,12 +108,50 @@
   padding: 8px 0;
 }
 
-.breadcrumb {
+/* Breadcrumbs */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.breadcrumbLink {
   font-size: 9.5px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--g400);
-  margin-bottom: 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.breadcrumbLink:hover {
+  color: var(--negro);
+}
+
+.breadcrumbCurrent {
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--negro);
+}
+
+.breadcrumbSep {
+  font-size: 9px;
+  color: var(--g200);
+}
+
+/* Name row con share */
+.nameRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .name {
@@ -116,22 +159,43 @@
   font-size: clamp(24px, 2.8vw, 38px);
   font-weight: 300;
   line-height: 1.1;
-  margin-bottom: 16px;
+  flex: 1;
+}
+
+.shareBtn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--g200);
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--g400);
+  transition: all 0.2s;
+  flex-shrink: 0;
+  margin-top: 4px;
+  position: relative;
+}
+
+.shareBtn:hover {
+  border-color: var(--negro);
+  color: var(--negro);
+}
+
+.copiedMsg {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--negro);
+  white-space: nowrap;
 }
 
 .priceRow {
-  margin-bottom: 16px;
-}
-
-.desc {
-  font-size: 13px;
-  line-height: 1.85;
-  color: var(--g600);
-  margin: 20px 0 28px;
+  margin-bottom: 14px;
 }
 
 .optSection {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .optLabel {
@@ -158,9 +222,18 @@
   letter-spacing: 0.12em;
   color: var(--dorado);
   margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
 }
 
-/* Swatches circulares */
+.guideLink:hover {
+  text-decoration: underline;
+}
+
+/* Swatches */
 .swatches {
   display: flex;
   gap: 8px;
@@ -225,7 +298,72 @@
   font-size: 11px;
   color: var(--rojo);
   letter-spacing: 0.08em;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+}
+
+/* Cantidad */
+.qtyRow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: fit-content;
+  border: 1px solid var(--g200);
+}
+
+.qtyBtn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--negro);
+  transition: background 0.2s;
+  font-weight: 300;
+}
+
+.qtyBtn:hover:not(:disabled) {
+  background: var(--g100);
+}
+
+.qtyBtn:disabled {
+  color: var(--g200);
+  cursor: default;
+}
+
+.qtyNum {
+  width: 44px;
+  text-align: center;
+  font-size: 13px;
+  border-left: 1px solid var(--g200);
+  border-right: 1px solid var(--g200);
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Trust badges */
+.trustBadges {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.trustBadge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--g600);
+  background: var(--g100);
+  padding: 6px 10px;
 }
 
 /* CTAs */
@@ -233,7 +371,6 @@
   display: flex;
   gap: 10px;
   margin-bottom: 22px;
-  margin-top: 28px;
 }
 
 .wishBtn {
@@ -267,7 +404,7 @@
   gap: 12px;
   background: var(--g100);
   padding: 14px 16px;
-  margin-bottom: 24px;
+  margin-bottom: 8px;
 }
 
 .shippingBox p {
@@ -280,22 +417,163 @@
   color: var(--negro);
 }
 
-/* Details */
-.details {
+/* ── Acordeón ── */
+.accordions {
+  margin-top: 8px;
   border-top: 1px solid var(--g100);
+}
+
+.accordion {
+  border-bottom: 1px solid var(--g100);
+}
+
+.accordionBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--negro);
+  text-align: left;
+}
+
+.accordionBtn:hover {
+  opacity: 0.65;
+}
+
+.accordionIcon {
+  font-size: 18px;
+  font-weight: 300;
+  transition: transform 0.25s;
+  line-height: 1;
+}
+
+.accordionIconOpen {
+  transform: rotate(45deg);
+}
+
+.accordionBody {
+  padding-bottom: 16px;
+}
+
+.accordionText {
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--g600);
+}
+
+.accordionText p {
+  margin-bottom: 6px;
+}
+
+.accordionDetails {
+  display: flex;
+  flex-direction: column;
 }
 
 .detRow {
   display: flex;
   justify-content: space-between;
-  padding: 9px 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--g100);
   font-size: 12px;
+}
+
+.detRow:last-child {
+  border-bottom: none;
 }
 
 .detKey {
   color: var(--g400);
   letter-spacing: 0.04em;
+}
+
+/* ── Modal guía de tallas ── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modalBox {
+  background: var(--blanco, #fff);
+  max-width: 520px;
+  width: 100%;
+  padding: 32px;
+  position: relative;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.modalTitle {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 300;
+}
+
+.modalClose {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--g400);
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.modalClose:hover {
+  color: var(--negro);
+}
+
+.sizeTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.sizeTable th {
+  text-align: left;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--g400);
+  padding: 8px 12px 8px 0;
+  border-bottom: 1px solid var(--g100);
+}
+
+.sizeTable td {
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--g100);
+  color: var(--g600);
+}
+
+.sizeTable tr:last-child td {
+  border-bottom: none;
+}
+
+.sizeNote {
+  font-size: 11px;
+  color: var(--g400);
+  font-style: italic;
 }
 
 /* Related */
@@ -337,35 +615,13 @@
   .relGrid {
     grid-template-columns: repeat(2, 1fr);
   }
-}
-/* Miniaturas */
-.thumbs {
-  display: flex;
-  flex-direction: row;
-  gap: 6px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-}
 
-.thumb {
-  width: 72px;
-  height: 90px;
-  flex-shrink: 0;
-  overflow: hidden;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: border-color 0.2s;
-  background: none;
-  padding: 0;
-}
+  .trustBadges {
+    gap: 6px;
+  }
 
-.thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.thumbOn {
-  border-color: var(--negro);
+  .trustBadge {
+    font-size: 8.5px;
+    padding: 5px 8px;
+  }
 }

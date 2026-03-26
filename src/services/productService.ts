@@ -2,7 +2,6 @@ import apiClient from '@/config/axiosConfig'
 import type { Product, ProductFilters, ProductsResponse } from '@/types'
 import type { ProductVariant } from '@/types'
 
-/** Normalise a single product from various API shapes */
 function normaliseProduct(raw: Record<string, unknown>): Product {
   // ── Colors ──────────────────────────────────────────────────────────────────
   const colors = Array.isArray(raw.colors) && (raw.colors as unknown[]).length > 0
@@ -65,7 +64,6 @@ function normaliseProduct(raw: Record<string, unknown>): Product {
   }
 }
 
-/** Normalise paginated products response */
 function normaliseProductsResponse(raw: unknown): ProductsResponse {
   if (Array.isArray(raw)) {
     const products = (raw as Record<string, unknown>[]).map(normaliseProduct)
@@ -91,14 +89,12 @@ const productService = {
   },
 
   async getProductBySlug(slug: string): Promise<Product> {
-    // Estrategia 1: GET /Products/{slug} directo (funciona con UUID o slug)
     try {
       const { data } = await apiClient.get(`/Products/${slug}`)
       const raw = (data?.product ?? data?.data ?? data) as Record<string, unknown>
       if (raw?.id && raw?.name) return normaliseProduct(raw)
     } catch { /* continuar */ }
 
-    // Estrategia 2: traer todos y filtrar localmente
     try {
       const { data } = await apiClient.get('/Products', { params: { limit: 200 } })
       const all = normaliseProductsResponse(data).data

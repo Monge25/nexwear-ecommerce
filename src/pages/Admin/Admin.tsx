@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useFetch } from "@/hooks/useFetch";
@@ -705,6 +705,16 @@ const ProductsSection: React.FC<{
   const total: number = (data as any)?.total ?? products.length;
 
   useEffect(() => {
+  products.forEach(p => {
+    if (!Array.isArray(p.variants)) return
+
+    p.variants.forEach(v => {
+      if (v.stock < 0) v.stock = 0
+    })
+  })
+}, [products])
+
+  useEffect(() => {
     setPage(1);
   }, [debouncedSearch, sortOrder]);
 
@@ -832,11 +842,30 @@ const ProductsSection: React.FC<{
       </div>
 
       {/* ── Search + Sort bar ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 16,
+        }}
+      >
         <div style={{ position: "relative", flex: 1, maxWidth: 360 }}>
           <svg
-            style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#9a9a9a" }}
-            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+            style={{
+              position: "absolute",
+              left: 10,
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+              color: "#9a9a9a",
+            }}
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
           >
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.35-4.35" />
@@ -859,7 +888,9 @@ const ProductsSection: React.FC<{
           <option value="oldest">Más antiguos primero</option>
         </select>
         {!loading && (
-          <span style={{ fontSize: 12, color: "#9a9a9a", whiteSpace: "nowrap" }}>
+          <span
+            style={{ fontSize: 12, color: "#9a9a9a", whiteSpace: "nowrap" }}
+          >
             {total} producto{total !== 1 ? "s" : ""}
             {debouncedSearch ? ` para "${debouncedSearch}"` : ""}
           </span>
@@ -888,7 +919,13 @@ const ProductsSection: React.FC<{
             token={token}
             apiUrl={BASE_URL}
           />
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 24 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginBottom: 24,
+            }}
+          >
             <button
               className={styles.btnFill}
               onClick={() => {
@@ -927,30 +964,103 @@ const ProductsSection: React.FC<{
                         <td>
                           <div className={styles.prodCell}>
                             {p.imageUrl ? (
-                              <img className={styles.prodImg} src={p.imageUrl} alt={p.name} />
+                              <img
+                                className={styles.prodImg}
+                                src={p.imageUrl}
+                                alt={p.name}
+                              />
                             ) : (
-                              <div className={styles.prodDot} style={{ background: "#f5f5f5" }} />
+                              <div
+                                className={styles.prodDot}
+                                style={{ background: "#f5f5f5" }}
+                              />
                             )}
-                            <span>{p.name}</span>
+                            <div>
+                              <span>{p.name}</span>
+
+                              {Array.isArray(p.variants) &&
+                                p.variants.length > 0 && (
+                                  <div
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#9a9a9a",
+                                      marginTop: 2,
+                                    }}
+                                  >
+                                    {p.variants.slice(0, 3).map((v) => (
+                                      <span
+                                        key={v.id}
+                                        style={{ marginRight: 6 }}
+                                      >
+                                        {v.color} {v.size} ({v.stock})
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                            </div>
                           </div>
                         </td>
-                        <td className={styles.tdNum} style={{ textTransform: "capitalize" }}>
+                        <td
+                          className={styles.tdNum}
+                          style={{ textTransform: "capitalize" }}
+                        >
                           {String(p.category ?? "")}
                         </td>
-                        <td className={styles.tdGold}>{formatPrice(p.price)}</td>
-                        <td className={styles.tdNum}>
-                          {/* Stock total calculado de variantes */}
-                          {Array.isArray(p.variants) && p.variants.length > 0
-                            ? p.variants.reduce((acc, v) => acc + (v.stock ?? 0), 0)
-                            : "—"}
+                        <td className={styles.tdGold}>
+                          {formatPrice(p.price)}
                         </td>
-                        <td style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-                          {p.isNew && <span className={`${styles.badge} ${styles.badgeBlue}`}>Nuevo</span>}
-                          {p.isSale && <span className={`${styles.badge} ${styles.badgeGreen}`}>Rebaja</span>}
-                          {!p.isNew && !p.isSale && <span className={`${styles.badge} ${styles.badgeGray}`}>Estándar</span>}
+                        <td className={styles.tdNum}>
+                          {Array.isArray(p.variants)
+                            ? p.variants.reduce(
+                                (acc, v) => acc + (v.stock ?? 0),
+                                0,
+                              )
+                            : 0}
+                        </td>
+                        <td
+                          style={{
+                            display: "flex",
+                            gap: 4,
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                          }}
+                        >
+                          {p.isNew && (
+                            <span
+                              className={`${styles.badge} ${styles.badgeBlue}`}
+                            >
+                              Nuevo
+                            </span>
+                          )}
+                          {p.isSale && (
+                            <span
+                              className={`${styles.badge} ${styles.badgeGreen}`}
+                            >
+                              Rebaja
+                            </span>
+                          )}
+                          {!p.isNew && !p.isSale && (
+                            <span
+                              className={`${styles.badge} ${styles.badgeGray}`}
+                            >
+                              Estándar
+                            </span>
+                          )}
                         </td>
                         <td>
                           <div className={styles.actionBtns}>
+                            <button
+                              className={styles.btnEdit}
+                              onClick={() => {
+                                setCreatedProduct({
+                                  id: String(p.id),
+                                  price: p.price,
+                                });
+                              }}
+                            >
+                              Variantes
+                            </button>
+
                             <button
                               className={styles.btnEdit}
                               onClick={() => {
@@ -960,6 +1070,7 @@ const ProductsSection: React.FC<{
                             >
                               Editar
                             </button>
+
                             <button
                               className={styles.btnDanger}
                               onClick={() => handleDelete(p.id)}
@@ -973,7 +1084,9 @@ const ProductsSection: React.FC<{
                   ) : (
                     <tr>
                       <td colSpan={6} className={styles.empty}>
-                        {debouncedSearch ? `Sin resultados para "${debouncedSearch}"` : "Sin productos"}
+                        {debouncedSearch
+                          ? `Sin resultados para "${debouncedSearch}"`
+                          : "Sin productos"}
                       </td>
                     </tr>
                   )}
@@ -1155,7 +1268,7 @@ const UsersSection: React.FC<{
   }, [page, roleFilter, debouncedSearch]);
 
   const fetchUsers = useCallback(
-    () => apiCall<Paginated<User>>(`/admin/users?${buildQuery()}`, token),
+    () => apiCall<Paginated<User>>(`/Users?${buildQuery()}`, token),
     [buildQuery, token],
   );
 
