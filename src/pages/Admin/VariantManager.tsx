@@ -1,475 +1,288 @@
 import { useState, useRef } from "react";
-import styles from "./Admin.module.css";
-
-// ── Tipos ────────────────────────────────────────────────────
-interface VariantForm {
-  color: string;
-  colorHex: string;
-  size: string;
-  stock: number;
-  priceModifier: number;
-  imageFile: File | null;
+import adminStyles from "./Admin.module.css";
+import s from "./VariantManager.module.css";
+ 
+interface SizeStock { size: string; stock: number; selected: boolean }
+interface ColorForm {
+  color: string; colorHex: string; priceModifier: number;
+  imageFile: File | null; sizes: SizeStock[];
 }
-
 interface Variant {
-  id: string;
-  color?: string;
-  colorHex?: string;
-  size?: string;
-  stock: number;
-  priceModifier: number;
-  finalPrice: number;
-  imageUrl?: string;
-  isActive: boolean;
+  id: string; color?: string; colorHex?: string; size?: string;
+  stock: number; priceModifier: number; finalPrice: number;
+  imageUrl?: string; isActive: boolean;
 }
-
 interface VariantManagerProps {
-  productId: string;
-  basePrice: number;
-  token: string;
-  apiUrl: string;
+  productId: string; basePrice: number; token: string; apiUrl: string;
 }
-
+ 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL", "36", "37", "38", "39", "40", "41", "42"];
-
-const blankVariant = (): VariantForm => ({
-  color: "",
-  colorHex: "#000000",
-  size: "",
-  stock: 0,
-  priceModifier: 0,
-  imageFile: null,
+ 
+const blankForm = (): ColorForm => ({
+  color: "", colorHex: "#000000", priceModifier: 0, imageFile: null,
+  sizes: SIZES.map((size) => ({ size, stock: 0, selected: false })),
 });
-
-// ── Componente principal ─────────────────────────────────────
+ 
 export const VariantManager: React.FC<VariantManagerProps> = ({
-  productId,
-  basePrice,
-  token,
-  apiUrl,
+  productId, basePrice, token, apiUrl,
 }) => {
-  const [variants, setVariants] = useState<Variant[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<VariantForm>(blankVariant());
-  const [saving, setSaving] = useState(false);
+  const [variants, setVariants]       = useState<Variant[]>([]);
+  const [loaded, setLoaded]           = useState(false);
+  const [showForm, setShowForm]       = useState(false);
+  const [form, setForm]               = useState<ColorForm>(blankForm());
+  const [saving, setSaving]           = useState(false);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]             = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  // Cargar variantes al abrir la sección
+ 
+  const variantsUrl = `${apiUrl}/api/products/${productId}/variants`;
+ 
   const loadVariants = async () => {
     if (loaded) return;
     try {
-      const res = await fetch(`${apiUrl}/api/products/${productId}/variants`);
+      const res = await fetch(variantsUrl);
       const data = await res.json();
       setVariants(Array.isArray(data) ? data : []);
       setLoaded(true);
-    } catch {
-      setError("No se pudieron cargar las variantes.");
-    }
+    } catch { setError("No se pudieron cargar las variantes."); }
   };
-
-  // Crear variante
+ 
+  const reloadVariants = async () => {
+    const res = await fetch(variantsUrl);
+    const data = await res.json();
+    setVariants(Array.isArray(data) ? data : []);
+  };
+ 
+  const uploadImage = (variantId: string, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return fetch(`${variantsUrl}/${variantId}/image`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd,
+    });
+  };
+ 
+  const toggleSize = (size: string) =>
+    setForm((f) => ({
+      ...f,
+      sizes: f.sizes.map((s) =>
+        s.size === size ? { ...s, selected: !s.selected, stock: s.selected ? 0 : s.stock } : s
+      ),
+    }));
+ 
+  const setStock = (size: string, stock: number) =>
+    setForm((f) => ({
+      ...f,
+      sizes: f.sizes.map((s) => (s.size === size ? { ...s, stock } : s)),
+    }));
+ 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     setError(null);
-
+    const selected = form.sizes.filter((s) => s.selected);
+    if (selected.length === 0) { setError("Selecciona al menos una talla."); return; }
+    setSaving(true);
     try {
-      // 1. Crear la variante
-      const res = await fetch(`${apiUrl}/api/products/${productId}/variants`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          color: form.color || null,
-          colorHex: form.colorHex || null,
-          size: form.size || null,
-          stock: form.stock,
-          priceModifier: form.priceModifier,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Error al crear la variante");
-      const variant: Variant = await res.json();
-
-      // 2. Subir imagen si hay archivo seleccionado
-      if (form.imageFile) {
-        const imgData = new FormData();
-        imgData.append("file", form.imageFile);
-
-        const imgRes = await fetch(
-          `${apiUrl}/api/products/${productId}/variants/${variant.id}/image`,
-          {
+      const created = await Promise.all(
+        selected.map((s) =>
+          fetch(variantsUrl, {
             method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: imgData,
-          }
-        );
-
-        if (imgRes.ok) {
-          const updated: Variant = await imgRes.json();
-          setVariants((v) => [...v, updated]);
-        } else {
-          setVariants((v) => [...v, variant]);
-        }
-      } else {
-        setVariants((v) => [...v, variant]);
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              color: form.color || null, colorHex: form.colorHex || null,
+              size: s.size, stock: s.stock, priceModifier: form.priceModifier,
+            }),
+          }).then((r) => r.json())
+        )
+      );
+      if (form.imageFile) {
+        await Promise.all(created.map((v) => uploadImage(v.id, form.imageFile!)));
       }
-
-      setForm(blankVariant());
+      await reloadVariants();
+      setForm(blankForm());
       setShowForm(false);
       if (fileRef.current) fileRef.current.value = "";
-    } catch {
-      setError("Ocurrió un error al guardar la variante.");
-    } finally {
-      setSaving(false);
-    }
+    } catch { setError("Ocurrió un error al guardar las variantes."); }
+    finally { setSaving(false); }
   };
-
-  // Subir/reemplazar imagen de variante existente
+ 
   const handleImageUpload = async (variantId: string, file: File) => {
     setUploadingId(variantId);
-    setError(null);
     try {
-      const imgData = new FormData();
-      imgData.append("file", file);
-
-      const res = await fetch(
-        `${apiUrl}/api/products/${productId}/variants/${variantId}/image`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: imgData,
-        }
-      );
-
-      if (!res.ok) throw new Error("Error al subir imagen");
+      const res = await uploadImage(variantId, file);
+      if (!res.ok) throw new Error();
       const updated: Variant = await res.json();
       setVariants((v) => v.map((x) => (x.id === variantId ? updated : x)));
-    } catch {
-      setError("No se pudo subir la imagen.");
-    } finally {
-      setUploadingId(null);
-    }
+    } catch { setError("No se pudo subir la imagen."); }
+    finally { setUploadingId(null); }
   };
-
-  // Eliminar variante (soft delete)
+ 
   const handleDelete = async (variantId: string) => {
     if (!confirm("¿Eliminar esta variante?")) return;
     try {
-      await fetch(`${apiUrl}/api/products/${productId}/variants/${variantId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+      await fetch(`${variantsUrl}/${variantId}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
       });
       setVariants((v) => v.filter((x) => x.id !== variantId));
-    } catch {
-      setError("No se pudo eliminar la variante.");
-    }
+    } catch { setError("No se pudo eliminar la variante."); }
   };
-
+ 
+  const groupedByColor = variants.reduce<Record<string, Variant[]>>((acc, v) => {
+    const key = v.colorHex ?? v.color ?? "sin-color";
+    return { ...acc, [key]: [...(acc[key] ?? []), v] };
+  }, {});
+ 
+  const selectedCount = form.sizes.filter((s) => s.selected).length;
+ 
   return (
-    <div className={styles.formCard}>
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 16,
-        }}
-      >
-        <div className={styles.formTitle} style={{ marginBottom: 0 }}>
-          Variantes del producto
-        </div>
+    <div className={adminStyles.formCard}>
+ 
+      <div className={s.header}>
+        <div className={adminStyles.formTitle} style={{ marginBottom: 0 }}>Variantes del producto</div>
         <button
-          className={styles.btnFill}
+          className={adminStyles.btnFill}
           style={{ padding: "6px 14px", fontSize: 13 }}
-          onClick={() => {
-            loadVariants();
-            setShowForm((v) => !v);
-          }}
+          onClick={() => { loadVariants(); setShowForm((v) => !v); }}
         >
-          {showForm ? "Cancelar" : "+ Agregar variante"}
+          {showForm ? "Cancelar" : "+ Agregar color"}
         </button>
       </div>
-
-      {error && (
-        <div
-          style={{
-            background: "#fff0f0",
-            border: "0.5px solid #fca5a5",
-            borderRadius: 8,
-            padding: "10px 14px",
-            color: "#b91c1c",
-            fontSize: 13,
-            marginBottom: 14,
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {/* Formulario nueva variante */}
+ 
+      {error && <div className={s.error}>{error}</div>}
+ 
       {showForm && (
-        <form
-          onSubmit={handleCreate}
-          style={{
-            background: "#fafafa",
-            border: "0.5px solid #e8e8e8",
-            borderRadius: 8,
-            padding: 16,
-            marginBottom: 16,
-          }}
-        >
-          <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12, color: "#111" }}>
-            Nueva variante
-          </div>
-
-          <div className={styles.grid2} style={{ marginBottom: 12 }}>
-            <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>Color</label>
-              <input
-                className={styles.fieldInput}
-                value={form.color}
+        <form className={s.form} onSubmit={handleCreate}>
+          <div className={s.formTitle}>Nuevo color</div>
+ 
+          <div className={adminStyles.grid2} style={{ marginBottom: 14 }}>
+            <div className={adminStyles.fieldWrap}>
+              <label className={adminStyles.fieldLabel}>Nombre del color</label>
+              <input className={adminStyles.fieldInput} value={form.color}
                 onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-                placeholder="Negro"
-              />
+                placeholder="Blanco, Negro, Azul marino..." />
             </div>
-            <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>Código HEX</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  type="color"
-                  value={form.colorHex}
+            <div className={adminStyles.fieldWrap}>
+              <label className={adminStyles.fieldLabel}>Código HEX</label>
+              <div className={s.colorPickerWrap}>
+                <input type="color" className={s.colorSwatch} value={form.colorHex}
+                  onChange={(e) => setForm((f) => ({ ...f, colorHex: e.target.value }))} />
+                <input className={adminStyles.fieldInput} value={form.colorHex}
                   onChange={(e) => setForm((f) => ({ ...f, colorHex: e.target.value }))}
-                  style={{ width: 38, height: 38, padding: 2, border: "0.5px solid #e8e8e8", borderRadius: 6, cursor: "pointer" }}
-                />
-                <input
-                  className={styles.fieldInput}
-                  value={form.colorHex}
-                  onChange={(e) => setForm((f) => ({ ...f, colorHex: e.target.value }))}
-                  placeholder="#000000"
-                  style={{ flex: 1 }}
-                />
+                  placeholder="#000000" style={{ flex: 1 }} />
               </div>
             </div>
           </div>
-
-          <div className={styles.grid2} style={{ marginBottom: 12 }}>
-            <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>Talla</label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-                {SIZES.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, size: f.size === s ? "" : s }))}
-                    style={{
-                      padding: "4px 10px",
-                      fontSize: 12,
-                      border: "0.5px solid",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      borderColor: form.size === s ? "#111" : "#d4d4d4",
-                      background: form.size === s ? "#111" : "#fff",
-                      color: form.size === s ? "#fff" : "#555",
-                      fontWeight: form.size === s ? 500 : 400,
-                    }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>Stock *</label>
-              <input
-                className={styles.fieldInput}
-                type="number"
-                min={0}
-                value={form.stock}
-                onChange={(e) => setForm((f) => ({ ...f, stock: Number(e.target.value) }))}
-                required
-              />
-            </div>
-          </div>
-
-          <div className={styles.grid2} style={{ marginBottom: 12 }}>
-            <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>
-                Modificador de precio (MXN)
-              </label>
-              <input
-                className={styles.fieldInput}
-                type="number"
-                step={0.01}
+ 
+          <div className={adminStyles.grid2} style={{ marginBottom: 14 }}>
+            <div className={adminStyles.fieldWrap}>
+              <label className={adminStyles.fieldLabel}>Modificador de precio (MXN)</label>
+              <input className={adminStyles.fieldInput} type="number" step={0.01}
                 value={form.priceModifier}
-                onChange={(e) => setForm((f) => ({ ...f, priceModifier: Number(e.target.value) }))}
-              />
-              <div className={styles.hint}>
+                onChange={(e) => setForm((f) => ({ ...f, priceModifier: Number(e.target.value) }))} />
+              <div className={adminStyles.hint}>
                 Precio final: ${(basePrice + form.priceModifier).toFixed(2)} MXN
               </div>
             </div>
-            <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>Imagen de esta variante</label>
-              <input
-                ref={fileRef}
-                className={styles.fieldInput}
-                type="file"
+            <div className={adminStyles.fieldWrap}>
+              <label className={adminStyles.fieldLabel}>Imagen de este color</label>
+              <input ref={fileRef} className={adminStyles.fieldInput} type="file"
                 accept="image/jpeg,image/png,image/webp"
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, imageFile: e.target.files?.[0] ?? null }))
-                }
-              />
-              <div className={styles.hint}>JPG, PNG o WebP · máx 5MB</div>
+                onChange={(e) => setForm((f) => ({ ...f, imageFile: e.target.files?.[0] ?? null }))} />
+              <div className={adminStyles.hint}>Se aplicará a todas las tallas de este color</div>
             </div>
           </div>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button
-              type="button"
-              className={styles.btnGhost}
-              onClick={() => { setShowForm(false); setForm(blankVariant()); }}
-              disabled={saving}
-            >
+ 
+          <div className={adminStyles.fieldWrap} style={{ marginBottom: 14 }}>
+            <label className={adminStyles.fieldLabel}>
+              Tallas disponibles
+              {selectedCount > 0 && (
+                <span className={s.sizesCount}>
+                  {selectedCount} seleccionada{selectedCount !== 1 ? "s" : ""}
+                </span>
+              )}
+            </label>
+            <div className={s.sizesList}>
+              {form.sizes.map((sz) => (
+                <div key={sz.size} className={`${s.sizeRow} ${sz.selected ? s.sizeRowActive : ""}`}>
+                  <button type="button"
+                    className={`${s.sizeBtn} ${sz.selected ? s.sizeBtnActive : ""}`}
+                    onClick={() => toggleSize(sz.size)}>
+                    {sz.size}
+                  </button>
+                  {sz.selected ? (
+                    <div className={s.stockWrap}>
+                      <span className={s.stockLabel}>Stock:</span>
+                      <input type="number" min={0} value={sz.stock}
+                        className={s.stockInput}
+                        onChange={(e) => setStock(sz.size, Number(e.target.value))} />
+                      <span className={s.stockHint}>unidades</span>
+                    </div>
+                  ) : (
+                    <span className={s.sizeHint}>Clic para agregar esta talla</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+ 
+          <div className={s.formActions}>
+            <button type="button" className={adminStyles.btnGhost} disabled={saving}
+              onClick={() => { setShowForm(false); setForm(blankForm()); }}>
               Cancelar
             </button>
-            <button type="submit" className={styles.btnFill} disabled={saving}>
-              {saving ? "Guardando…" : "Guardar variante"}
+            <button type="submit" className={adminStyles.btnFill} disabled={saving}>
+              {saving ? "Guardando…" : `Guardar ${selectedCount > 0 ? selectedCount : ""} variante${selectedCount !== 1 ? "s" : ""}`}
             </button>
           </div>
         </form>
       )}
-
-      {/* Lista de variantes */}
-      {loaded && variants.length === 0 && !showForm && (
-        <div style={{ color: "#999", fontSize: 13, textAlign: "center", padding: "20px 0" }}>
-          Sin variantes todavía. Agrega la primera.
-        </div>
+ 
+      {loaded && Object.keys(groupedByColor).length === 0 && !showForm && (
+        <div className={s.empty}>Sin variantes todavía. Agrega el primer color.</div>
       )}
-
-      {variants.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {variants.map((v) => (
-            <div
-              key={v.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "10px 14px",
-                border: "0.5px solid #e8e8e8",
-                borderRadius: 8,
-                background: "#fff",
-              }}
-            >
-              {/* Color swatch */}
-              {v.colorHex && (
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    background: v.colorHex,
-                    border: "0.5px solid #e8e8e8",
-                    flexShrink: 0,
-                  }}
-                />
-              )}
-
-              {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: "#111" }}>
-                  {[v.color, v.size].filter(Boolean).join(" · ") || "Sin nombre"}
-                </div>
-                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
-                  Stock: {v.stock} · Precio: ${v.finalPrice.toFixed(2)} MXN
+ 
+      {Object.entries(groupedByColor).map(([colorKey, colorVariants]) => {
+        const first = colorVariants[0];
+        const totalStock = colorVariants.reduce((acc, v) => acc + v.stock, 0);
+        return (
+          <div key={colorKey} className={s.colorGroup}>
+            <div className={s.colorGroupHeader}>
+              {first.colorHex && <div className={s.colorDot} style={{ background: first.colorHex }} />}
+              <span className={s.colorName}>{first.color ?? "Sin nombre"}</span>
+              {first.imageUrl && <img src={first.imageUrl} alt={first.color ?? ""} className={s.colorThumb} />}
+              <span className={s.colorMeta}>
+                {colorVariants.length} talla{colorVariants.length !== 1 ? "s" : ""} · stock total: {totalStock}
+              </span>
+              <label className={s.imgLabel}>
+                {uploadingId ? "Subiendo…" : first.imageUrl ? "Cambiar img" : "Subir img"}
+                <input type="file" accept="image/jpeg,image/png,image/webp"
+                  style={{ display: "none" }} disabled={uploadingId !== null}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) colorVariants.forEach((v) => handleImageUpload(v.id, file));
+                  }} />
+              </label>
+            </div>
+            {colorVariants.map((v) => (
+              <div key={v.id} className={s.variantRow}>
+                <span className={s.variantSize}>{v.size ?? "—"}</span>
+                <span className={s.variantInfo}>
+                  Stock: {v.stock} · ${v.finalPrice.toFixed(2)} MXN
                   {v.priceModifier !== 0 && (
-                    <span style={{ color: v.priceModifier > 0 ? "#b45309" : "#15803d" }}>
+                    <span className={v.priceModifier > 0 ? s.priceUp : s.priceDown}>
                       {" "}({v.priceModifier > 0 ? "+" : ""}{v.priceModifier})
                     </span>
                   )}
-                </div>
-              </div>
-
-              {/* Imagen preview */}
-              <div style={{ flexShrink: 0 }}>
-                {v.imageUrl ? (
-                  <img
-                    src={v.imageUrl}
-                    alt={v.color ?? "variante"}
-                    style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6, border: "0.5px solid #e8e8e8" }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 6,
-                      border: "0.5px dashed #d4d4d4",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 10,
-                      color: "#bbb",
-                    }}
-                  >
-                    Sin img
-                  </div>
-                )}
-              </div>
-
-              {/* Acciones */}
-              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                {/* Subir/reemplazar imagen */}
-                <label
-                  style={{
-                    fontSize: 12,
-                    padding: "5px 10px",
-                    border: "0.5px solid #d4d4d4",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    color: "#555",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {uploadingId === v.id ? "Subiendo…" : v.imageUrl ? "Cambiar img" : "Subir img"}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    style={{ display: "none" }}
-                    disabled={uploadingId === v.id}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleImageUpload(v.id, file);
-                    }}
-                  />
-                </label>
-
-                {/* Eliminar */}
-                <button
-                  onClick={() => handleDelete(v.id)}
-                  style={{
-                    fontSize: 12,
-                    padding: "5px 10px",
-                    border: "0.5px solid #fca5a5",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    color: "#b91c1c",
-                    background: "#fff",
-                  }}
-                >
+                </span>
+                <button className={s.deleteBtn} onClick={() => handleDelete(v.id)}>
                   Eliminar
                 </button>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 };
