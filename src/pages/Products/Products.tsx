@@ -172,7 +172,6 @@ const Products: React.FC = () => {
 
   return (
     <div className={styles.page}>
-
       {/* ── Sidebar ── */}
       <aside className={styles.sidebar}>
         <div className={styles.sideHeader}>
@@ -188,16 +187,24 @@ const Products: React.FC = () => {
           <p className={styles.groupTitle}>Categoría</p>
           <div className={styles.items}>
             <label className={styles.check}>
-              <input type="radio" name="cat" value=""
+              <input
+                type="radio"
+                name="cat"
+                value=""
                 checked={!activeCategory}
-                onChange={() => setParam("category", null)} />
+                onChange={() => setParam("category", null)}
+              />
               Todo
             </label>
             {CATEGORIES.map((c) => (
               <label key={c.value} className={styles.check}>
-                <input type="radio" name="cat" value={c.value}
+                <input
+                  type="radio"
+                  name="cat"
+                  value={c.value}
                   checked={activeCategory === c.value}
-                  onChange={() => setParam("category", c.value)} />
+                  onChange={() => setParam("category", c.value)}
+                />
                 {c.label}
               </label>
             ))}
@@ -212,7 +219,10 @@ const Products: React.FC = () => {
               <span>{priceLabel}</span>
             </div>
             <input
-              type="range" min={0} max={MAX_PRICE} step={500}
+              type="range"
+              min={0}
+              max={MAX_PRICE}
+              step={500}
               value={maxPrice}
               onChange={(e) => {
                 const val = Number(e.target.value);
@@ -226,9 +236,11 @@ const Products: React.FC = () => {
           <p className={styles.groupTitle}>Talla</p>
           <div className={styles.sizeBtns}>
             {SIZES.map((s) => (
-              <button key={s}
+              <button
+                key={s}
                 className={`${styles.sizeBtn} ${activeSizes?.includes(s as never) ? styles.sizeBtnOn : ""}`}
-                onClick={() => toggleSize(s)}>
+                onClick={() => toggleSize(s)}
+              >
                 {s}
               </button>
             ))}
@@ -239,13 +251,19 @@ const Products: React.FC = () => {
           <p className={styles.groupTitle}>Disponibilidad</p>
           <div className={styles.items}>
             <label className={styles.check}>
-              <input type="checkbox" checked={isNew}
-                onChange={() => setParam("isNew", isNew ? null : "true")} />
+              <input
+                type="checkbox"
+                checked={isNew}
+                onChange={() => setParam("isNew", isNew ? null : "true")}
+              />
               Solo nuevos
             </label>
             <label className={styles.check}>
-              <input type="checkbox" checked={isSale}
-                onChange={() => setParam("isSale", isSale ? null : "true")} />
+              <input
+                type="checkbox"
+                checked={isSale}
+                onChange={() => setParam("isSale", isSale ? null : "true")}
+              />
               Solo en rebaja
             </label>
           </div>
@@ -254,14 +272,15 @@ const Products: React.FC = () => {
 
       {/* ── Main ── */}
       <main className={styles.main}>
-
         {/* Barra superior */}
         <div className={styles.topBar}>
           <div className={styles.tabs}>
             {[{ value: "", label: "Todo" }, ...CATEGORIES].map((c) => (
-              <button key={c.value}
+              <button
+                key={c.value}
                 className={`${styles.tab} ${activeCategory === c.value ? styles.tabOn : ""}`}
-                onClick={() => setParam("category", c.value || null)}>
+                onClick={() => setParam("category", c.value || null)}
+              >
                 {c.label}
               </button>
             ))}
@@ -298,11 +317,15 @@ const Products: React.FC = () => {
               {total} producto{total !== 1 ? "s" : ""}
             </span>
 
-            <select className={styles.sortSel}
+            <select
+              className={styles.sortSel}
               value={activeSort ?? "relevance"}
-              onChange={(e) => setParam("sort", e.target.value)}>
+              onChange={(e) => setParam("sort", e.target.value)}
+            >
               {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
             </select>
 
@@ -313,30 +336,53 @@ const Products: React.FC = () => {
 
         {/* Grid */}
         {loading ? (
-          <div className={styles.loaderWrap}><Loader size="lg" /></div>
+          <div className={styles.loaderWrap}>
+            <Loader size="lg" />
+          </div>
         ) : products.length === 0 ? (
           <div className={styles.empty}>
-            <svg width="48" height="48" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" strokeWidth="1"
-              style={{ opacity: 0.15, marginBottom: 12 }}>
-              <circle cx="11" cy="11" r="8"/>
-              <path d="m21 21-4.35-4.35"/>
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              style={{ opacity: 0.15, marginBottom: 12 }}
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
             </svg>
             <p>Sin resultados</p>
             <span>Prueba con otros filtros</span>
             {hasFilters && (
-              <button className={styles.clearBtn} onClick={clearAll}
-                style={{ marginTop: 12 }}>
+              <button
+                className={styles.clearBtn}
+                onClick={clearAll}
+                style={{ marginTop: 12 }}
+              >
                 Limpiar filtros
               </button>
             )}
           </div>
         ) : (
-          <div className={styles.grid}
-            style={{ "--cols": gridCols } as React.CSSProperties}>
+          <div
+            className={styles.grid}
+            style={{ "--cols": gridCols } as React.CSSProperties}
+          >
             {products.map((p) => (
-              <ProductCard key={p.id} product={p}
-                onAddToCart={(prod) => addItem(prod, 1, prod.sizes[0], prod.colors[0])} />
+              <ProductCard
+                key={p.id}
+                product={p}
+                onAddToCart={(prod) =>
+                  addItem(
+                    prod,
+                    1,
+                    prod.sizes?.[0] || "M",
+                    prod.colors?.[0] || { name: "Negro", hex: "#000" },
+                  )
+                }
+              />
             ))}
           </div>
         )}
@@ -344,17 +390,21 @@ const Products: React.FC = () => {
         {/* Paginación */}
         {total > 12 && !loading && (
           <div className={styles.pagination}>
-            <button disabled={page === 1}
+            <button
+              disabled={page === 1}
               onClick={() => setPage((p) => p - 1)}
-              className={styles.pageBtn}>
+              className={styles.pageBtn}
+            >
               ← Anterior
             </button>
             <span className={styles.pageInfo}>
               {page} / {Math.ceil(total / 12)}
             </span>
-            <button disabled={page >= Math.ceil(total / 12)}
+            <button
+              disabled={page >= Math.ceil(total / 12)}
               onClick={() => setPage((p) => p + 1)}
-              className={styles.pageBtn}>
+              className={styles.pageBtn}
+            >
               Siguiente →
             </button>
           </div>
