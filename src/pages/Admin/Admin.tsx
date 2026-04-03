@@ -8,11 +8,12 @@ import type { Product, Order, User } from "@/types";
 import Loader from "@/components/ui/Loader";
 import styles from "./Admin.module.css";
 import { VariantManager } from "./VariantManager";
+import env from "@/config/environment";
+import { PagedResult } from "@/types/pagination";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const BASE = "https://nexwearapi-production.up.railway.app/api";
-const BASE_URL = "https://nexwearapi-production.up.railway.app";
-
+const BASE = env.API_BASE_URL;
+const BASE_URL = env.AUTH_BASE_URL;
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pendiente",
@@ -267,7 +268,7 @@ const AdminProductForm: React.FC<{
             placeholder="Blazer de lino oversize"
           />
         </div>
-        <div className={styles.fieldWrap}>
+        {/* <div className={styles.fieldWrap}>
           <label className={styles.fieldLabel}>Slug (URL)</label>
           <input
             className={styles.fieldInput}
@@ -275,7 +276,7 @@ const AdminProductForm: React.FC<{
             onChange={set("slug")}
             placeholder="blazer-lino-oversize"
           />
-        </div>
+        </div> */}
       </div>
 
       <div className={styles.grid2}>
@@ -324,7 +325,7 @@ const AdminProductForm: React.FC<{
             required
           />
         </div>
-        <div className={styles.fieldWrap}>
+        {/* <div className={styles.fieldWrap}>
           <label className={styles.fieldLabel}>Precio original</label>
           <input
             className={styles.fieldInput}
@@ -340,7 +341,7 @@ const AdminProductForm: React.FC<{
             }
           />
           <div className={styles.hint}>Vacío si no hay oferta</div>
-        </div>
+        </div> */}
       </div>
 
       {/* Image upload */}
@@ -403,7 +404,7 @@ const AdminProductForm: React.FC<{
       </div>
 
       <div className={styles.checkRow}>
-        <label className={styles.checkLabel}>
+        {/* <label className={styles.checkLabel}>
           <input
             type="checkbox"
             checked={form.isNew ?? false}
@@ -412,7 +413,7 @@ const AdminProductForm: React.FC<{
             }
           />
           Nuevo
-        </label>
+        </label> */}
         <label className={styles.checkLabel}>
           <input
             type="checkbox"
@@ -495,9 +496,15 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
   const { data: productsRes, loading: pl } = useFetch(
     useCallback(
       () =>
-        apiCall<Paginated<Product>>("/Products?limit=100", token).catch(() => ({
-          data: [],
-          total: 0,
+        apiCall<PagedResult<Product>>(
+          "/Products?page=1&pageSize=10",
+          token,
+        ).catch(() => ({
+          items: [],
+          page: 1,
+          pageSize: 10,
+          totalCount: 0,
+          totalPages: 0,
         })),
       [token],
     ),
@@ -510,16 +517,14 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
     (ordersRes as any)?.data ?? (Array.isArray(ordersRes) ? ordersRes : []);
   const users =
     (usersRes as any)?.data ?? (Array.isArray(usersRes) ? usersRes : []);
-  const products =
-    (productsRes as any)?.data ??
-    (Array.isArray(productsRes) ? productsRes : []);
+  const products = productsRes?.items ?? [];
 
   const totalRevenue =
     stats?.totalRevenue ??
     (orders as Order[]).reduce((a: number, o: Order) => a + (o.total ?? 0), 0);
   const totalOrders = stats?.totalOrders ?? (orders as Order[]).length;
   const totalUsers = stats?.totalUsers ?? (users as User[]).length;
-  const totalProducts = stats?.totalProducts ?? (products as Product[]).length;
+  const totalProducts = stats?.totalProducts ?? productsRes?.totalCount ?? 0;
 
   const recentOrders: Order[] =
     stats?.recentOrders ?? (orders as Order[]).slice(0, 8);
@@ -674,7 +679,8 @@ const ProductsSection: React.FC<{
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
-  const [createdProduct, setCreatedProduct] = useState<{   // ← NUEVO
+  const [createdProduct, setCreatedProduct] = useState<{
+    // ← NUEVO
     id: string;
     price: number;
   } | null>(null);
@@ -684,7 +690,7 @@ const ProductsSection: React.FC<{
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams();
     params.set("page", String(page));
-    params.set("limit", "20");
+    params.set("pageSize", "10");
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (sortOrder === "newest") params.set("sortBy", "createdAt_desc");
     if (sortOrder === "oldest") params.set("sortBy", "createdAt_asc");
@@ -692,30 +698,36 @@ const ProductsSection: React.FC<{
   }, [page, debouncedSearch, sortOrder]);
 
   const fetchProducts = useCallback(
-    () => apiCall<Paginated<Product>>(`/Products?${buildQuery()}`, token),
+    () => apiCall<PagedResult<Product>>(`/Products?${buildQuery()}`, token),
     [buildQuery, token],
   );
 
-  const { data, loading, refetch } = useFetch(fetchProducts, [
-    buildQuery,
-    token,
-  ]);
-  const products: Product[] =
-    (data as any)?.data ?? (Array.isArray(data) ? data : []);
-  const total: number = (data as any)?.total ?? products.length;
+  const { data, loading, refetch } = useFetch(
+    () =>
+      fetchProducts().catch(() => ({
+        items: [],
+        page: 1,
+        pageSize: 10,
+        totalCount: 0,
+        totalPages: 0,
+      })),
+    [buildQuery, token],
+  );
+  const products = data?.items ?? [];
+  const total = data?.totalCount ?? 0;
 
   useEffect(() => {
-  products.forEach(p => {
-    if (!Array.isArray(p.variants)) return
+    products.forEach((p) => {
+      if (!Array.isArray(p.variants)) return;
 
-    p.variants.forEach(v => {
-      if (v.stock < 0) v.stock = 0
-    })
-  })
-}, [products])
+      p.variants.forEach((v) => {
+        if (v.stock < 0) v.stock = 0;
+      });
+    });
+  }, [products]);
 
   useEffect(() => {
-    setPage(1);
+    setPage(1)
   }, [debouncedSearch, sortOrder]);
 
   // ── handleSave ──────────────────────────────────────────────────────────────
@@ -727,15 +739,15 @@ const ProductsSection: React.FC<{
         await apiCall(`/Products/${body.id}`, token, {
           method: "PUT",
           body: JSON.stringify({
-            name:        body.name ?? "",
+            name: body.name ?? "",
             description: body.description ?? "",
-            price:       Number(body.price ?? 0),
-            category:    body.category ?? "mujer",
-            material:    body.material ?? "",
-            care:        body.care ?? "",
-            origin:      body.origin ?? "",
-            isNew:       body.isNew ?? false,
-            isSale:      body.isSale ?? false,
+            price: Number(body.price ?? 0),
+            category: body.category ?? "mujer",
+            material: body.material ?? "",
+            care: body.care ?? "",
+            origin: body.origin ?? "",
+            // isNew:       body.isNew ?? false,
+            // isSale:      body.isSale ?? false,
           }),
         });
 
@@ -748,7 +760,10 @@ const ProductsSection: React.FC<{
               body: fd,
             });
           } catch (imgErr: any) {
-            show(`Producto actualizado, pero la imagen falló: ${imgErr.message}`, "error");
+            show(
+              `Producto actualizado, pero la imagen falló: ${imgErr.message}`,
+              "error",
+            );
           }
         }
 
@@ -756,27 +771,26 @@ const ProductsSection: React.FC<{
         setCreatedProduct(null);
         setFormData(null);
         refetch();
-
       } else {
         // ── Create flow ──────────────────────────────────────
         const dto = {
-          name:        body.name ?? "",
+          name: body.name ?? "",
           description: body.description ?? "",
-          price:       Number(body.price ?? 0),
-          category:    body.category ?? "mujer",
-          material:    body.material ?? "",
-          care:        body.care ?? "",
-          origin:      body.origin ?? "",
-          isNew:       body.isNew ?? false,
-          isSale:      body.isSale ?? false,
-          slug:
-            body.slug ??
-            (body.name ?? "")
-              .toLowerCase()
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .replace(/[^a-z0-9]+/g, "-")
-              .replace(/^-+|-+$/g, ""),
+          price: Number(body.price ?? 0),
+          category: body.category ?? "mujer",
+          material: body.material ?? "",
+          care: body.care ?? "",
+          origin: body.origin ?? "",
+          // isNew:       body.isNew ?? false,
+          // isSale:      body.isSale ?? false,
+          // slug:
+          //   body.slug ??
+          //   (body.name ?? "")
+          //     .toLowerCase()
+          //     .normalize("NFD")
+          //     .replace(/[\u0300-\u036f]/g, "")
+          //     .replace(/[^a-z0-9]+/g, "-")
+          //     .replace(/^-+|-+$/g, ""),
         };
 
         const created = await apiCall<any>("/Products", token, {
@@ -787,7 +801,8 @@ const ProductsSection: React.FC<{
         const productId = String(
           created?.id ?? created?.data?.id ?? created?.product?.id ?? "",
         );
-        if (!productId) throw new Error("No se recibió el id del producto creado");
+        if (!productId)
+          throw new Error("No se recibió el id del producto creado");
 
         if (body.imageFile) {
           const fd = new FormData();
@@ -798,7 +813,10 @@ const ProductsSection: React.FC<{
               body: fd,
             });
           } catch (imgErr: any) {
-            show(`Producto creado, pero la imagen falló: ${imgErr.message}`, "error");
+            show(
+              `Producto creado, pero la imagen falló: ${imgErr.message}`,
+              "error",
+            );
           }
         }
 

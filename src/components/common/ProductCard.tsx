@@ -16,6 +16,8 @@ function groupByColor(variants: ProductVariant[]) {
   const map = new Map<string, { colorHex: string; imageUrl: string; variants: ProductVariant[] }>()
   for (const v of variants) {
     if (!v.isActive) continue
+    if (!v.color || !v.colorHex || !v.imageUrl) continue
+
     if (!map.has(v.color)) {
       map.set(v.color, { colorHex: v.colorHex, imageUrl: v.imageUrl, variants: [] })
     }

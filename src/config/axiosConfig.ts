@@ -29,23 +29,8 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-      const refreshToken = localStorage.getItem('nexwear_refresh_token')
-
-      if (refreshToken) {
-        try {
-          const { data } = await axios.post(`${env.API_BASE_URL}/auth/refresh`, {
-            refreshToken,
-          })
-          localStorage.setItem('nexwear_token', data.token)
-          apiClient.defaults.headers.common.Authorization = `Bearer ${data.token}`
-          return apiClient(originalRequest)
-        } catch {
-          localStorage.removeItem('nexwear_token')
-          localStorage.removeItem('nexwear_refresh_token')
-          window.location.href = '/auth/login'
-        }
-      }
+      // No refresh logic, just reject
+      return Promise.reject(error)
     }
 
     return Promise.reject(error)

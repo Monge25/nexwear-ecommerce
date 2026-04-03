@@ -4,10 +4,10 @@ import { useAuth } from "@/hooks/useAuth";
 import Loader from "@/components/ui/Loader";
 
 const PrivateRoute: React.FC = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, hydrated } = useAuth();
   const location = useLocation();
 
-  if (loading) return <Loader fullPage />;
+  if (!hydrated || loading) return <Loader fullPage />;
   if (!isAuthenticated)
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   return <Outlet />;

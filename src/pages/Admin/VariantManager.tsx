@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import styles from "./Admin.module.css";
+import env from "@/config/environment";
+
+const BASE = env.API_BASE_URL;
 
 // ── Tipos ────────────────────────────────────────────────────
 interface VariantForm {
@@ -27,7 +30,7 @@ interface VariantManagerProps {
   productId: string;
   basePrice: number;
   token: string;
-  apiUrl: string;
+  apiUrl: string | undefined;
 }
 
 const SIZES = [
@@ -86,7 +89,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
     const load = async () => {
       try {
         const res = await fetch(
-          `${apiUrl}/api/products/${productId}/variants`,
+          `${BASE}/products/${productId}/variants`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -108,7 +111,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`${apiUrl}/api/products/${productId}/variants`, {
+      const res = await fetch(`${BASE}/products/${productId}/variants`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -129,7 +132,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
         const imgData = new FormData();
         imgData.append("file", form.imageFile);
         const imgRes = await fetch(
-          `${apiUrl}/api/products/${productId}/variants/${variant.id}/image`,
+          `${BASE}/products/${productId}/variants/${variant.id}/image`,
           {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
@@ -162,7 +165,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
     setError(null);
     try {
       const res = await fetch(
-        `${apiUrl}/api/products/${productId}/variants/${variantId}`,
+        `${BASE}/products/${productId}/variants/${variantId}`,
         {
           method: "PUT",
           headers: {
@@ -186,7 +189,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
         const imgData = new FormData();
         imgData.append("file", editForm.imageFile);
         const imgRes = await fetch(
-          `${apiUrl}/api/products/${productId}/variants/${variantId}/image`,
+          `${BASE}/products/${productId}/variants/${variantId}/image`,
           {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
@@ -219,7 +222,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
       const imgData = new FormData();
       imgData.append("file", file);
       const res = await fetch(
-        `${apiUrl}/api/products/${productId}/variants/${variantId}/image`,
+        `${BASE}/products/${productId}/variants/${variantId}/image`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -240,7 +243,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
   const handleDelete = async (variantId: string) => {
     if (!confirm("¿Eliminar esta variante?")) return;
     try {
-      await fetch(`${apiUrl}/api/products/${productId}/variants/${variantId}`, {
+      await fetch(`${BASE}/products/${productId}/variants/${variantId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
