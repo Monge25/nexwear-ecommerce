@@ -96,13 +96,13 @@ const Products: React.FC = () => {
   const activeCategory = searchParams.get("category") ?? "";
   const activeSort     = (searchParams.get("sort") ?? "relevance") as ProductFilters["sortBy"];
   const activeSearch   = searchParams.get("search") ?? "";
-  const isSale         = searchParams.get("isSale") === "true";
-  const isNew          = searchParams.get("isNew")  === "true";
+  const isOnSale         = searchParams.get("isOnSale") === "true";
+  // const isNew          = searchParams.get("isNew")  === "true";
   const activeSizes    = searchParams.getAll("size") as ProductFilters["sizes"];
   const maxPrice       = Number(searchParams.get("maxPrice") ?? MAX_PRICE);
 
   const hasFilters = !!(
-    activeCategory || activeSearch || isSale || isNew ||
+    activeCategory || activeSearch || isOnSale ||
     activeSizes?.length || maxPrice < MAX_PRICE
   );
 
@@ -114,8 +114,8 @@ const Products: React.FC = () => {
         ...(activeCategory             && { category: activeCategory }),
         ...(activeSort !== "relevance" && { sortBy: activeSort }),
         ...(activeSearch               && { search: activeSearch }),
-        ...(isSale                     && { isSale: true }),
-        ...(isNew                      && { isNew: true }),
+        ...(isOnSale                     && { isOnSale: true }),
+        // ...(isNew                      && { isNew: true }),
         ...(activeSizes?.length        && { sizes: activeSizes }),
         ...(maxPrice < MAX_PRICE       && { maxPrice }),
         page,
@@ -132,7 +132,7 @@ const Products: React.FC = () => {
     }
   }, [
     activeCategory, activeSort, activeSearch,
-    isSale, isNew, maxPrice, page,
+    isOnSale, maxPrice, page,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     JSON.stringify(activeSizes),
   ]);
@@ -250,19 +250,19 @@ const Products: React.FC = () => {
         <div className={styles.group}>
           <p className={styles.groupTitle}>Disponibilidad</p>
           <div className={styles.items}>
-            <label className={styles.check}>
+            {/* <label className={styles.check}>
               <input
                 type="checkbox"
                 checked={isNew}
                 onChange={() => setParam("isNew", isNew ? null : "true")}
               />
               Solo nuevos
-            </label>
+            </label> */}
             <label className={styles.check}>
               <input
                 type="checkbox"
-                checked={isSale}
-                onChange={() => setParam("isSale", isSale ? null : "true")}
+                checked={isOnSale}
+                onChange={() => setParam("isSale", isOnSale ? null : "true")}
               />
               Solo en rebaja
             </label>
@@ -294,18 +294,18 @@ const Products: React.FC = () => {
                 <button onClick={() => setParam("search", null)}>✕</button>
               </span>
             )}
-            {isSale && (
+            {isOnSale && (
               <span className={styles.queryTag}>
                 Rebaja
                 <button onClick={() => setParam("isSale", null)}>✕</button>
               </span>
             )}
-            {isNew && (
+            {/* {isNew && (
               <span className={styles.queryTag}>
                 Nuevo
                 <button onClick={() => setParam("isNew", null)}>✕</button>
               </span>
-            )}
+            )} */}
             {activeSizes?.map((s) => (
               <span key={s} className={styles.queryTag}>
                 Talla {s}
@@ -319,7 +319,7 @@ const Products: React.FC = () => {
 
             <select
               className={styles.sortSel}
-              value={activeSort ?? "relevance"}
+              value={activeSort ?? "createdAt_asc"}
               onChange={(e) => setParam("sort", e.target.value)}
             >
               {SORT_OPTIONS.map((o) => (

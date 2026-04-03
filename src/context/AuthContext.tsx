@@ -1,20 +1,23 @@
-import React, { createContext, useContext, useEffect, useReducer } from "react"
-import type { User, LoginCredentials, RegisterData } from "@/types"
-import authService from "@/services/authService"
+import React, { createContext, useContext, useEffect, useReducer } from "react";
+import type { User, LoginCredentials, RegisterData } from "@/types";
+import authService from "@/services/authService";
+import Loader from "@/components/ui/Loader";
 
 interface AuthState {
-  user: User | null
-  isAuthenticated: boolean
-  loading: boolean
-  error: string | null
+  user: User | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+  hydrated: boolean;
+  error: string | null;
 }
 
 const initialState: AuthState = {
   user: null,
-  isAuthenticated: authService.isAuthenticated(),
-  loading: false,
+  isAuthenticated: false,
+  loading: true,
+  hydrated: false,
   error: null,
-}
+};
 
 type AuthAction =
   | { type: "SET_LOADING" }
@@ -22,11 +25,12 @@ type AuthAction =
   | { type: "SET_ERROR"; payload: string }
   | { type: "LOGOUT" }
   | { type: "CLEAR_ERROR" }
+  | { type: "HYDRATED" };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case "SET_LOADING":
-      return { ...state, loading: true, error: null }
+      return { ...state, loading: true, error: null };
 
     case "SET_USER":
       return {
@@ -34,90 +38,124 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         user: action.payload,
         isAuthenticated: true,
         loading: false,
+        hydrated: true,
         error: null,
-      }
+      };
 
     case "SET_ERROR":
-      return { ...state, loading: false, error: action.payload }
+      return { ...state, loading: false, error: action.payload };
 
     case "LOGOUT":
       return {
         user: null,
         isAuthenticated: false,
         loading: false,
+        hydrated: true,
         error: null,
-      }
+      };
 
     case "CLEAR_ERROR":
-      return { ...state, error: null }
+      return { ...state, error: null };
+
+    case "HYDRATED":
+      return {
+        ...state,
+        loading: false,
+        hydrated: true,
+      };
 
     default:
-      return state
+      return state;
   }
 }
 
 interface AuthContextValue extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<void>
-  register: (data: RegisterData) => Promise<void>
-  logout: () => Promise<void>
-  clearError: () => void
-  isAdmin: boolean
+  login: (credentials: LoginCredentials) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => Promise<void>;
+  clearError: () => void;
+  isAdmin: boolean;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(authReducer, initialState)
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [state, dispatch] = useReducer(authReducer, initialState);
 
   useEffect(() => {
-    if (authService.isAuthenticated()) {
-      authService
-        .getMe()
-        .then((user) => dispatch({ type: "SET_USER", payload: user }))
-        .catch(() => dispatch({ type: "LOGOUT" }))
+  const hydrateAuth = async () => {
+    console.log("🔥 Hydration started");
+
+    try {
+      const token = localStorage.getItem("nexwear_token");
+      console.log("TOKEN:", token);
+
+      if (!token) {
+        console.log("No token");
+        dispatch({ type: "HYDRATED" });
+        return;
+      }
+
+      console.log("Calling getMe...");
+      const user = await authService.getMe();
+
+      console.log("USER RECEIVED:", user);
+
+      dispatch({ type: "SET_USER", payload: user });
+    } catch (err) {
+      console.log("HYDRATION ERROR", err);
+      dispatch({ type: "LOGOUT" });
+    } finally {
+      console.log("Hydration finished");
+      dispatch({ type: "HYDRATED" });
     }
-  }, [])
+  };
+
+  hydrateAuth();
+}, []);
 
   const login = async (credentials: LoginCredentials) => {
-    dispatch({ type: "SET_LOADING" })
+    dispatch({ type: "SET_LOADING" });
 
     try {
-      const user = await authService.login(credentials)
+      const user = await authService.login(credentials);
 
-      dispatch({ type: "SET_USER", payload: user })
+      dispatch({ type: "SET_USER", payload: user });
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Error al iniciar sesión"
+        err instanceof Error ? err.message : "Error al iniciar sesión";
 
-      dispatch({ type: "SET_ERROR", payload: message })
-      throw err
+      dispatch({ type: "SET_ERROR", payload: message });
+      throw err;
     }
-  }
+  };
 
   const register = async (data: RegisterData) => {
-    dispatch({ type: "SET_LOADING" })
+    dispatch({ type: "SET_LOADING" });
 
     try {
-      const user = await authService.register(data)
+      const user = await authService.register(data);
 
-      dispatch({ type: "SET_USER", payload: user })
+      dispatch({ type: "SET_USER", payload: user });
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Error al registrarse"
+        err instanceof Error ? err.message : "Error al registrarse";
 
-      dispatch({ type: "SET_ERROR", payload: message })
-      throw err
+      dispatch({ type: "SET_ERROR", payload: message });
+      throw err;
     }
-  }
+  };
 
   const logout = async () => {
-    await authService.logout()
-    dispatch({ type: "LOGOUT" })
-  }
+    await authService.logout();
+    dispatch({ type: "LOGOUT" });
+  };
 
-  const clearError = () => dispatch({ type: "CLEAR_ERROR" })
+  const clearError = () => dispatch({ type: "CLEAR_ERROR" });
 
-  const isAdmin = state.user?.role === "Admin"
+  const isAdmin = state.user?.role === "Admin";
 
   return (
     <AuthContext.Provider
@@ -132,15 +170,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     >
       {children}
     </AuthContext.Provider>
-  )
-}
+  );
+};
 
 export const useAuthContext = (): AuthContextValue => {
-  const ctx = useContext(AuthContext)
+  const ctx = useContext(AuthContext);
 
   if (!ctx) {
-    throw new Error("useAuthContext must be used within AuthProvider")
+    throw new Error("useAuthContext must be used within AuthProvider");
   }
 
-  return ctx
-}
+  return ctx;
+};

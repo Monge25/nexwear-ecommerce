@@ -10,10 +10,11 @@ export const CATEGORIES = [
 export const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const
 
 export const SORT_OPTIONS = [
-  { value: 'relevance',  label: 'Relevancia' },
+  // { value: 'relevance',  label: 'Relevancia' },
   { value: 'price_asc',  label: 'Precio: menor' },
   { value: 'price_desc', label: 'Precio: mayor' },
-  { value: 'newest',     label: 'Más nuevos' },
+  { value: 'createdAt_asc',     label: 'Más recientes' },
+  { value: 'createdAt_desc',     label: 'Menos recientes' },
 ] as const
 
 export const ORDER_STATUS_LABELS: Record<string, string> = {
