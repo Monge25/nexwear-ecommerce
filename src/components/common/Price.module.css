@@ -1,5 +1,5 @@
 .wrap    { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.current { font-family: var(--font-display); font-weight: 300; }
+.current { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-weight: 300; }
 .original{ text-decoration: line-through; color: var(--g400); font-weight: 300; }
 .sale    { color: var(--rojo); font-weight: 400; }
 .badge   { background: var(--rojo); color: #fff; font-size: 9px; padding: 3px 6px; letter-spacing: 0.08em; font-weight: 500; }

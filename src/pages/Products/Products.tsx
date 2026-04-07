@@ -13,9 +13,39 @@ const MAX_PRICE = 10000;
 
 // ─── Grid toggle config ───────────────────────────────────────────────────────
 const GRID_CONFIGS: { cols: number; dots: [number, number][] }[] = [
-  { cols: 2, dots: [[0,0],[1,0],[0,1],[1,1]] },
-  { cols: 3, dots: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]] },
-  { cols: 4, dots: [[0,0],[1,0],[2,0],[3,0],[0,1],[1,1],[2,1],[3,1]] },
+  {
+    cols: 2,
+    dots: [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+    ],
+  },
+  {
+    cols: 3,
+    dots: [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [0, 1],
+      [1, 1],
+      [2, 1],
+    ],
+  },
+  {
+    cols: 4,
+    dots: [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [3, 0],
+      [0, 1],
+      [1, 1],
+      [2, 1],
+      [3, 1],
+    ],
+  },
 ];
 
 // ─── GridToggle component ─────────────────────────────────────────────────────
@@ -87,23 +117,28 @@ const Products: React.FC = () => {
   const { addItem } = useCart();
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [total,    setTotal]    = useState(0);
-  const [loading,  setLoading]  = useState(true);
-  const [page,     setPage]     = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [gridCols, setGridCols] = useState(3);
+  const [priceInput, setPriceInput] = useState(MAX_PRICE.toString());
 
   // ── Leer filtros desde URL ─────────────────────────────────────────────────
   const activeCategory = searchParams.get("category") ?? "";
-  const activeSort     = (searchParams.get("sort") ?? "relevance") as ProductFilters["sortBy"];
-  const activeSearch   = searchParams.get("search") ?? "";
-  const isOnSale         = searchParams.get("isOnSale") === "true";
+  const activeSort = (searchParams.get("sort") ??
+    "relevance") as ProductFilters["sortBy"];
+  const activeSearch = searchParams.get("search") ?? "";
+  const isOnSale = searchParams.get("isOnSale") === "true";
   // const isNew          = searchParams.get("isNew")  === "true";
-  const activeSizes    = searchParams.getAll("size") as ProductFilters["sizes"];
-  const maxPrice       = Number(searchParams.get("maxPrice") ?? MAX_PRICE);
+  const activeSizes = searchParams.getAll("size") as ProductFilters["sizes"];
+  const maxPrice = Number(searchParams.get("maxPrice") ?? MAX_PRICE);
 
   const hasFilters = !!(
-    activeCategory || activeSearch || isOnSale ||
-    activeSizes?.length || maxPrice < MAX_PRICE
+    activeCategory ||
+    activeSearch ||
+    isOnSale ||
+    activeSizes?.length ||
+    maxPrice < MAX_PRICE
   );
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
@@ -111,13 +146,13 @@ const Products: React.FC = () => {
     setLoading(true);
     try {
       const filters: ProductFilters = {
-        ...(activeCategory             && { category: activeCategory }),
+        ...(activeCategory && { category: activeCategory }),
         ...(activeSort !== "relevance" && { sortBy: activeSort }),
-        ...(activeSearch               && { search: activeSearch }),
-        ...(isOnSale                     && { isOnSale: true }),
+        ...(activeSearch && { search: activeSearch }),
+        ...(isOnSale && { isOnSale: true }),
         // ...(isNew                      && { isNew: true }),
-        ...(activeSizes?.length        && { sizes: activeSizes }),
-        ...(maxPrice < MAX_PRICE       && { maxPrice }),
+        ...(activeSizes?.length && { sizes: activeSizes }),
+        ...(maxPrice < MAX_PRICE && { maxPrice }),
         page,
         limit: 12,
       };
@@ -131,13 +166,23 @@ const Products: React.FC = () => {
       setLoading(false);
     }
   }, [
-    activeCategory, activeSort, activeSearch,
-    isOnSale, maxPrice, page,
+    activeCategory,
+    activeSort,
+    activeSearch,
+    isOnSale,
+    maxPrice,
+    page,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     JSON.stringify(activeSizes),
   ]);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  useEffect(() => {
+  setPriceInput(String(maxPrice));
+}, [maxPrice]);
 
   // ── Helpers de URL ─────────────────────────────────────────────────────────
   const setParam = (key: string, value: string | null) => {
@@ -151,12 +196,11 @@ const Products: React.FC = () => {
 
   const toggleSize = (s: string) => {
     const next = new URLSearchParams(searchParams);
-    const cur  = next.getAll("size");
+    const cur = next.getAll("size");
     next.delete("size");
     if (cur.includes(s))
       cur.filter((x) => x !== s).forEach((v) => next.append("size", v));
-    else
-      [...cur, s].forEach((v) => next.append("size", v));
+    else [...cur, s].forEach((v) => next.append("size", v));
     setSearchParams(next);
     setPage(1);
   };
@@ -166,9 +210,10 @@ const Products: React.FC = () => {
     setPage(1);
   };
 
-  const priceLabel = maxPrice >= MAX_PRICE
-    ? `$${(MAX_PRICE / 1000).toFixed(0)}k+`
-    : `$${maxPrice.toLocaleString("es-MX")}`;
+  const priceLabel =
+    maxPrice >= MAX_PRICE
+      ? `$${(MAX_PRICE / 1000).toFixed(0)}k+`
+      : `$${maxPrice.toLocaleString("es-MX")}`;
 
   return (
     <div className={styles.page}>
@@ -213,19 +258,42 @@ const Products: React.FC = () => {
 
         <div className={styles.group}>
           <p className={styles.groupTitle}>Precio máximo</p>
+
           <div className={styles.rangeWrap}>
             <div className={styles.rangeVals}>
               <span>$0</span>
-              <span>{priceLabel}</span>
+
+              <input
+                type="number"
+                className={styles.priceInput}
+                value={priceInput}
+                min={0}
+                max={MAX_PRICE}
+                onChange={(e) => {
+                  const val = e.target.value;
+
+                  setPriceInput(val);
+
+                  const num = Number(val);
+
+                  if (!isNaN(num)) {
+                    setParam("maxPrice", num >= MAX_PRICE ? null : String(num));
+                  }
+                }}
+              />
             </div>
+
             <input
               type="range"
               min={0}
               max={MAX_PRICE}
-              step={500}
+              step={50}
               value={maxPrice}
               onChange={(e) => {
                 const val = Number(e.target.value);
+
+                setPriceInput(String(val));
+
                 setParam("maxPrice", val >= MAX_PRICE ? null : String(val));
               }}
             />

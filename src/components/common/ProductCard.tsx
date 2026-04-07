@@ -5,6 +5,7 @@ import Price from './Price'
 import AuthModal from './AuthModal'
 import { useAuth } from '@/hooks/useAuth'
 import styles from './ProductCard.module.css'
+import { useWishlist } from "@/context/WishlistContext";
 
 interface ProductCardProps {
   product: Product
@@ -29,7 +30,11 @@ function groupByColor(variants: ProductVariant[]) {
 const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
-  const [liked, setLiked] = useState(false)
+
+  const { toggle, has } = useWishlist()   // ✅ usar wishlist aquí
+
+  const liked = has(String(product.id))   // ✅ estado real wishlist
+
   const [authOpen, setAuthOpen] = useState(false)
   const [authReason, setAuthReason] = useState('')
 
@@ -42,44 +47,58 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     fetch(`https://nexwearapi-production.up.railway.app/api/products/${product.id}/variants`)
       .then((r) => r.json())
       .then((data: ProductVariant[]) => setVariants(data))
-      .catch(() => {}) // silencioso, usa fallback
+      .catch(() => {})
       .finally(() => setLoadingVariants(false))
   }, [product.id])
 
   const colorGroups = groupByColor(variants)
   const activeGroup = colorGroups[activeColorIdx]
 
-  // Imagen activa: la de la variante del color seleccionado, o el fallback del producto
   const activeImage = activeGroup?.imageUrl ?? product.imageUrl
   const activeBg = activeGroup?.colorHex ?? '#f2f0ec'
 
+
+  // ───────── Auth helper ─────────
   const requireAuth = (reason: string, action: () => void) => {
     if (!isAuthenticated) {
-      setAuthReason(reason);
-      setAuthOpen(true);
+      setAuthReason(reason)
+      setAuthOpen(true)
     } else {
-      action();
+      action()
     }
-  };
- 
-  const handleNavigate = () => navigate(`/productos/${product.slug}`);
- 
+  }
+
+
+  const handleNavigate = () =>
+    navigate(`/productos/${product.slug}`)
+
+
   const handleAddToCart = () =>
     requireAuth(
       "Inicia sesión para añadir productos a tu bolsa",
-      () => onAddToCart?.(product),
-    );
- 
+      () => onAddToCart?.(product)
+    )
+
+
+  // ───────── Wishlist ─────────
   const handleWishlist = (e: React.MouseEvent) => {
     e.stopPropagation()
-    requireAuth('Inicia sesión para guardar tus favoritos', () => setLiked((v) => !v))
+
+    requireAuth(
+      "Inicia sesión para guardar tus favoritos",
+      () =>
+        toggle({
+          ...product,
+          id: String(product.id)
+        })
+    )
   }
+
 
   const handleSwatchClick = (e: React.MouseEvent, idx: number) => {
     e.stopPropagation()
     setActiveColorIdx(idx)
   }
-
   return (
     <article className={styles.card}>
       {/* Image */}
@@ -87,21 +106,27 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         <div className={styles.imgInner} style={{ background: activeBg }}>
           <img
             src={activeImage}
-            alt={activeGroup ? `${product.name} - ${activeGroup.color}` : product.name}
+            alt={
+              activeGroup
+                ? `${product.name} - ${activeGroup.color}`
+                : product.name
+            }
             className={styles.img}
           />
         </div>
- 
+
         {/* Badges */}
         <div className={styles.badges}>
-          {product.isNew && <span className={`${styles.badge} ${styles.new}`}>Nuevo</span>}
+          {product.isNew && (
+            <span className={`${styles.badge} ${styles.new}`}>Nuevo</span>
+          )}
           {product.isSale && product.originalPrice && (
             <span className={`${styles.badge} ${styles.sale}`}>
               -{Math.round((1 - product.price / product.originalPrice) * 100)}%
             </span>
           )}
         </div>
- 
+
         {/* Wishlist */}
         <button
           className={`${styles.wishBtn} ${liked ? styles.liked : ""}`}
@@ -110,7 +135,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         >
           {liked ? "♥" : "♡"}
         </button>
- 
+
         {/* Actions overlay */}
         <div className={styles.actions}>
           <button className={styles.addBtn} onClick={handleAddToCart}>
@@ -125,7 +150,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
           </button>
         </div>
       </div>
- 
+
       {/* Info */}
       <div className={styles.info}>
         <p className={styles.cat}>
@@ -148,7 +173,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             {colorGroups.slice(0, 5).map((g, i) => (
               <button
                 key={g.color}
-                className={`${styles.swatch} ${i === activeColorIdx ? styles.swatchActive : ''}`}
+                className={`${styles.swatch} ${i === activeColorIdx ? styles.swatchActive : ""}`}
                 style={{ background: g.colorHex }}
                 title={g.color}
                 onClick={(e) => handleSwatchClick(e, i)}
@@ -156,7 +181,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
               />
             ))}
             {colorGroups.length > 5 && (
-              <span className={styles.moreColors}>+{colorGroups.length - 5}</span>
+              <span className={styles.moreColors}>
+                +{colorGroups.length - 5}
+              </span>
             )}
           </div>
         )}
@@ -170,14 +197,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
           </div>
         )}
       </div>
- 
+
       <AuthModal
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         reason={authReason}
       />
     </article>
-  )
+  );
 }
 
 export default ProductCard

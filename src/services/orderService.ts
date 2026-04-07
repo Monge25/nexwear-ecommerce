@@ -1,26 +1,16 @@
 import apiClient from './apiClient'
-import type { Order, CheckoutData } from '@/types'
 
-const orderService = {
-  async createOrder(checkoutData: CheckoutData): Promise<Order> {
-    const { data } = await apiClient.post<Order>('/orders', checkoutData)
-    return data
-  },
+const createOrder = async (data: any) => {
 
-  async getOrders(): Promise<Order[]> {
-    const { data } = await apiClient.get<Order[]>('/orders')
-    return data
-  },
+  const res = await apiClient.post(
+    "/orders",
+    data
+  );
 
-  async getOrderById(id: string): Promise<Order> {
-    const { data } = await apiClient.get<Order>(`/orders/${id}`)
-    return data
-  },
+  return res.data;
 
-  async cancelOrder(id: string): Promise<Order> {
-    const { data } = await apiClient.post<Order>(`/orders/${id}/cancel`)
-    return data
-  },
-}
+};
 
-export default orderService
+export default {
+  createOrder
+};

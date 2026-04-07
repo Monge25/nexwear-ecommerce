@@ -20,18 +20,18 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const has = useCallback(
-    (id: string) => items.some((p) => p.id === id),
-    [items]
+    (id: string) => items.some((p) => String(p.id) === String(id)),
+    [items],
   );
 
   const toggle = useCallback(
     (p: Product) =>
       setItems((prev) =>
-        prev.some((x) => x.id === p.id)
-          ? prev.filter((x) => x.id !== p.id)
-          : [...prev, p]
+        prev.some((x) => String(x.id) === String(p.id))
+          ? prev.filter((x) => String(x.id) !== String(p.id))
+          : [...prev, p],
       ),
-    []
+    [],
   );
 
   const openWishlist = () => setIsOpen(true);

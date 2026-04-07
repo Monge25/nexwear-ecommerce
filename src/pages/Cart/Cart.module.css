@@ -27,7 +27,7 @@
 }
 
 .emptyPage h1 {
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 28px;
   font-weight: 300;
 }
@@ -46,7 +46,7 @@
 }
 
 .title {
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 32px;
   font-weight: 300;
 }
@@ -88,7 +88,7 @@
 }
 
 .itemName {
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 16px;
   font-weight: 400;
   margin-bottom: 5px;
@@ -157,7 +157,7 @@
 
 .itemTotal {
   font-size: 15px;
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-weight: 300;
   white-space: nowrap;
 }
@@ -172,7 +172,7 @@
 }
 
 .sumTitle {
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 20px;
   font-weight: 300;
   margin-bottom: 22px;
@@ -205,7 +205,7 @@
 }
 
 .totalRow {
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 17px;
   color: var(--negro);
   border-bottom: none;

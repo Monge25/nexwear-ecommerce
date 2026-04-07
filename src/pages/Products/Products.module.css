@@ -26,7 +26,7 @@
 }
 
 .sideTitle {
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 20px;
   font-weight: 300;
 }
@@ -263,8 +263,10 @@ input[type=range]::-webkit-slider-thumb:hover {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
+  grid-template-columns: repeat(var(--cols, 3), 1fr);
+  gap: 18px;
+  animation: fade .35s ease;
+  transition: .25s ease;
 }
 
 .loaderWrap {
@@ -350,4 +352,17 @@ input[type=range]::-webkit-slider-thumb:hover {
   .grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+.priceInput {
+  width: 90px;
+  border: 1px solid var(--g200);
+  padding: 4px 8px;
+  font-size: 11px;
+  text-align: right;
+  background: transparent;
+}
+
+.priceInput:focus {
+  outline: none;
+  border-color: var(--negro);
 }

@@ -27,7 +27,7 @@
 }
 .close:hover { background: var(--negro); color: var(--blanco); }
 
-.logo   { font-family: var(--font-display); font-size: 22px; font-weight: 400; letter-spacing: .2em; text-align: center; margin-bottom: 8px; }
+.logo   {  font-size: 22px; font-weight: 400; letter-spacing: .2em; text-align: center; margin-bottom: 8px; }
 .reason { text-align: center; font-size: 12px; color: var(--dorado); letter-spacing: .06em; margin-bottom: 20px; padding: 8px 14px; background: rgba(184,151,90,.08); border-left: 2px solid var(--dorado); }
 
 /* Tabs */
@@ -87,7 +87,7 @@
 .terms a { color: var(--negro); text-decoration: underline; }
 
 /* Forgot */
-.forgotTitle { font-family: var(--font-display); font-size: 20px; font-weight: 300; text-align: center; margin-bottom: 6px; }
+.forgotTitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 300; text-align: center; margin-bottom: 6px; }
 .forgotSub   { font-size: 12px; color: var(--g400); text-align: center; line-height: 1.6; margin-bottom: 8px; }
 .successBox  { background: rgba(46,107,72,.08); border-left: 2px solid var(--verde); color: var(--verde); padding: 14px 16px; font-size: 12.5px; }
 .backLink    { background: none; border: none; color: var(--g400); font-size: 11px; cursor: pointer; text-align: center; letter-spacing: .06em; transition: color .2s; }

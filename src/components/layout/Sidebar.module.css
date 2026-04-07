@@ -40,7 +40,7 @@
 }
 
 .title {
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 20px;
   font-weight: 300;
 }
@@ -94,7 +94,7 @@
 }
 
 .empty p {
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 17px;
   color: var(--g600);
 }
@@ -129,7 +129,7 @@
 }
 
 .itemName {
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 14px;
   font-weight: 400;
   margin-bottom: 4px;
@@ -244,7 +244,7 @@
 }
 
 .total {
-  font-family: var(--font-display);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 16px;
   color: var(--negro);
   border-top: 1px solid var(--g200);

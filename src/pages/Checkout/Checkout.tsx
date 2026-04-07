@@ -7,8 +7,10 @@ import Input from "@/components/ui/Input";
 import orderService from "@/services/orderService";
 import type { CheckoutData } from "@/types";
 import styles from "./Checkout.module.css";
+import PaypalButton from "@/components/payments/PaypalButton";
 
 type Step = "shipping" | "payment" | "review";
+type PaymentMethod = "card" | "paypal";
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -232,6 +234,19 @@ const Checkout: React.FC = () => {
                     />
                   </div>
                 </>
+              )}
+
+              {form.method === "card" && <></>}
+
+              {form.method === "paypal" && (
+                <div style={{ marginTop: 20 }}>
+                  <PaypalButton
+                    onSuccess={(orderId) => {
+                      clearCart();
+                      navigate(`/perfil/pedidos?order=${orderId}`);
+                    }}
+                  />
+                </div>
               )}
               <div className={styles.btnRow}>
                 <Button variant="ghost" onClick={() => setStep("shipping")}>
