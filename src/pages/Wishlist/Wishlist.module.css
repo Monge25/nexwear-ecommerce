@@ -193,3 +193,25 @@ padding:60px;
 text-align:center;
 color:var(--g400);
 }
+
+.headerActions {
+display:flex;
+gap:10px;
+align-items:center;
+}
+
+.share {
+background:none;
+border:1px solid #e5e5e5;
+padding:6px 12px;
+font-size:12px;
+letter-spacing:1px;
+cursor:pointer;
+transition:.2s;
+}
+
+.share:hover {
+background:#000;
+color:white;
+border-color:#000;
+}

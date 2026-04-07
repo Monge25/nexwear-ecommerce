@@ -1,61 +1,176 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useCallback,
+  useEffect,
+} from "react";
+
+import { useAuth } from "@/hooks/useAuth";
 import type { Product } from "@/types";
 
-interface Ctx {
+// ── State ─────────────────────────────────────────────
+interface WishlistState {
   items: Product[];
-  count: number;
   isOpen: boolean;
+}
+
+const initialState: WishlistState = {
+  items: [],
+  isOpen: false,
+};
+
+// ── Actions ───────────────────────────────────────────
+type WishlistAction =
+  | { type: "TOGGLE"; payload: Product }
+  | { type: "OPEN" }
+  | { type: "CLOSE" }
+  | { type: "CLEAR" }
+  | { type: "SET"; payload: WishlistState };
+
+// ── Reducer ───────────────────────────────────────────
+function wishlistReducer(
+  state: WishlistState,
+  action: WishlistAction,
+): WishlistState {
+  switch (action.type) {
+    case "TOGGLE": {
+      const exists = state.items.find((i) => i.id === action.payload.id);
+
+      if (exists) {
+        return {
+          ...state,
+          items: state.items.filter((i) => i.id !== action.payload.id),
+        };
+      }
+
+      return {
+        ...state,
+        items: [...state.items, action.payload],
+      };
+    }
+
+    case "SET":
+      return action.payload;
+
+    case "CLEAR":
+      return {
+        ...state,
+        items: [],
+      };
+
+    case "OPEN":
+      return {
+        ...state,
+        isOpen: true,
+      };
+
+    case "CLOSE":
+      return {
+        ...state,
+        isOpen: false,
+      };
+
+    default:
+      return state;
+  }
+}
+
+// ── Context ───────────────────────────────────────────
+interface WishlistContextValue extends WishlistState {
+  count: number;
+
+  toggle: (product: Product) => void;
   has: (id: string) => boolean;
-  toggle: (p: Product) => void;
+
   openWishlist: () => void;
   closeWishlist: () => void;
 }
 
-const WishCtx = createContext<Ctx | undefined>(undefined);
+const WishlistContext = createContext<WishlistContextValue | undefined>(
+  undefined,
+);
 
-export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const [items, setItems] = useState<Product[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
+// ── Provider ──────────────────────────────────────────
+export const WishlistProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
+  const { user, isAuthenticated } = useAuth();
 
+  const storageKey = user ? `wishlist_${user.id}` : "wishlist_guest";
+
+  const [state, dispatch] = useReducer(wishlistReducer, initialState);
+
+  // ── Load wishlist ─────────────────────────────────
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+
+    if (saved) {
+      dispatch({
+        type: "SET",
+        payload: JSON.parse(saved),
+      });
+    } else {
+      dispatch({
+        type: "SET",
+        payload: initialState,
+      });
+    }
+  }, [storageKey]);
+
+  // ── Save wishlist ─────────────────────────────────
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  }, [state, storageKey]);
+
+  // ── Clear when logout ─────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) {
+      dispatch({ type: "CLEAR" });
+    }
+  }, [isAuthenticated]);
+
+  // ── Helpers ───────────────────────────────────────
   const has = useCallback(
-    (id: string) => items.some((p) => String(p.id) === String(id)),
-    [items],
+    (id: string) => state.items.some((p) => p.id === id),
+    [state.items],
   );
 
+  // ── Actions ───────────────────────────────────────
   const toggle = useCallback(
-    (p: Product) =>
-      setItems((prev) =>
-        prev.some((x) => String(x.id) === String(p.id))
-          ? prev.filter((x) => String(x.id) !== String(p.id))
-          : [...prev, p],
-      ),
+    (product: Product) =>
+      dispatch({
+        type: "TOGGLE",
+        payload: product,
+      }),
     [],
   );
 
-  const openWishlist = () => setIsOpen(true);
-  const closeWishlist = () => setIsOpen(false);
+  const openWishlist = useCallback(() => dispatch({ type: "OPEN" }), []);
+
+  const closeWishlist = useCallback(() => dispatch({ type: "CLOSE" }), []);
 
   return (
-    <WishCtx.Provider
+    <WishlistContext.Provider
       value={{
-        items,
-        count: items.length,
-        isOpen,
-        has,
+        ...state,
+        count: state.items.length,
         toggle,
+        has,
         openWishlist,
         closeWishlist,
       }}
     >
       {children}
-    </WishCtx.Provider>
+    </WishlistContext.Provider>
   );
 };
 
-export const useWishlist = () => {
-  const ctx = useContext(WishCtx);
-  if (!ctx) throw new Error("useWishlist outside WishlistProvider");
+// ── Hook ─────────────────────────────────────────────
+export const useWishlist = (): WishlistContextValue => {
+  const ctx = useContext(WishlistContext);
+
+  if (!ctx) throw new Error("useWishlist must be used within WishlistProvider");
+
   return ctx;
 };

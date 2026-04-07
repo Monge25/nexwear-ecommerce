@@ -8,34 +8,88 @@ const WishlistModal: React.FC = () => {
   const { items, isOpen, closeWishlist, toggle } = useWishlist();
   const { addItem } = useCart();
 
+  // ─── Share Wishlist ─────────────────────────────
+  const handleShare = async () => {
+    const ids = items.map((i) => i.id).join(",");
+
+    const shareUrl =
+      `${window.location.origin}/wishlist?items=${ids}`;
+
+    // Share nativo móvil
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Mi Wishlist Nexwear",
+          text: "Mira mis favoritos en Nexwear",
+          url: shareUrl
+        });
+      } catch {
+        // cancelado
+      }
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      alert("Wishlist copiada al portapapeles");
+    }
+  };
+
+
   if (!isOpen) return null;
+
 
   return (
     <>
-      <div className={styles.overlay} onClick={closeWishlist} />
+      {/* Overlay */}
+      <div
+        className={styles.overlay}
+        onClick={closeWishlist}
+      />
 
+      {/* Panel */}
       <div className={styles.panel}>
+
         {/* Header */}
         <div className={styles.header}>
           <div>
-            <h2 className={styles.title}>Favoritos</h2>
+            <h2 className={styles.title}>
+              Favoritos
+            </h2>
+
             <span className={styles.count}>
               {items.length} ARTÍCULOS
             </span>
           </div>
 
-          <button
-            className={styles.close}
-            onClick={closeWishlist}
-          >
-            ✕
-          </button>
+          <div className={styles.headerActions}>
+            
+            {/* Share */}
+            {items.length > 0 && (
+              <button
+                className={styles.share}
+                onClick={handleShare}
+              >
+                Compartir
+              </button>
+            )}
+
+            {/* Close */}
+            <button
+              className={styles.close}
+              onClick={closeWishlist}
+            >
+              ✕
+            </button>
+
+          </div>
         </div>
+
 
         {/* Items */}
         <div className={styles.items}>
           {items.map((item) => (
-            <div key={item.id} className={styles.item}>
+            <div
+              key={item.id}
+              className={styles.item}
+            >
 
               {/* Imagen */}
               <div className={styles.itemImg}>
@@ -55,6 +109,7 @@ const WishlistModal: React.FC = () => {
                   {formatPrice(item.price)}
                 </p>
 
+                {/* Add to Cart */}
                 <button
                   className={styles.add}
                   onClick={() =>
@@ -72,6 +127,7 @@ const WishlistModal: React.FC = () => {
                   AÑADIR A BOLSA
                 </button>
 
+                {/* Remove */}
                 <button
                   className={styles.remove}
                   onClick={() => toggle(item)}
@@ -84,6 +140,8 @@ const WishlistModal: React.FC = () => {
           ))}
         </div>
 
+
+        {/* Empty */}
         {items.length === 0 && (
           <div className={styles.empty}>
             No tienes favoritos aún
