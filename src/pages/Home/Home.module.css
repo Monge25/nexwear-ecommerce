@@ -73,7 +73,7 @@
   font-size: clamp(56px, 7.5vw, 104px);
   font-weight: 300;
   line-height: 0.92;
-  color: var(--blanco);
+  color: var(--negro);
   margin-bottom: 26px;
   animation: fadeUp 0.9s 0.38s both;
 }
@@ -85,7 +85,7 @@
 
 .heroDesc {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.42);
+  color: rgba(0, 0, 0, 0.42);
   line-height: 1.9;
   margin-bottom: 40px;
   max-width: 350px;
@@ -287,7 +287,7 @@
 
 /* ── Featured ── */
 .featured {
-  padding: 90px 52px;
+  padding: 50px 50px;
 }
 
 .featGrid {
@@ -298,8 +298,8 @@
 
 /* ── Categories ── */
 .cats {
-  background: var(--negro);
-  padding: 80px 52px;
+  background: var(--ease);
+  padding: 40px 42px;
 }
 
 .catsGrid {
@@ -313,6 +313,9 @@
   position: relative;
   overflow: hidden;
   cursor: pointer;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .catCard::after {
@@ -827,8 +830,8 @@
 
 /* ── Sale Banner ── */
 .saleBanner {
-  background: var(--negro);
-  padding: 100px 60px;
+  background: #1a1428;
+  padding: 55px 60px;
 }
 
 .saleContent {
@@ -841,7 +844,7 @@
   font-family: serif;
   font-size: 56px;
   font-weight: 300;
-  color: #fff;
+  color: #ffffff;
   line-height: 1.1;
 }
 

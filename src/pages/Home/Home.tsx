@@ -14,18 +14,21 @@ const SLIDES = [
     title: "Definida",
     titleEm: "el Silencio",
     desc: "Ropa que habla a través de la contención. Piezas diseñadas para quienes dejan que su presencia hable por ellos.",
+    image: "src/public/images/banners/banner-5.jpg",
   },
   {
     eyebrow: "Esenciales — Edición Limitada",
     title: "Viste el",
     titleEm: "Vacío",
     desc: "Maestría monocromática. Un guardarropa despojado a su forma más esencial.",
+    image: "src/public/images/banners/banner-3.jpg",
   },
   {
     eyebrow: "Drop Exclusivo",
     title: "Forma",
     titleEm: "Deseo",
     desc: "Piezas exclusivas en cantidades limitadas. Una vez agotadas, desaparecen.",
+    image: "src/public/images/banners/banner-4.jpg",
   },
 ];
 
@@ -49,7 +52,14 @@ const Home: React.FC = () => {
   }, []);
 
   const handleQuickAdd = (p: Product) => {
-    addItem(p, 1, p.sizes[0], p.colors[0]);
+    const size = p.sizes?.[0] ?? "M";
+
+    const color = p.colors?.[0] ?? {
+      name: "Negro",
+      hex: "#000",
+    };
+
+    addItem(p, 1, size, color);
   };
 
   return (
@@ -61,7 +71,12 @@ const Home: React.FC = () => {
             key={i}
             className={`${styles.slide} ${i === slide ? styles.active : ""}`}
           >
-            <div className={`${styles.slideBg} ${styles[`bg${i + 1}`]}`} />
+            <div
+              className={styles.slideBg}
+              style={{
+                backgroundImage: `url(${s.image})`,
+              }}
+            />
             <div className={styles.slideContent}>
               <p className={styles.eyebrow}>{s.eyebrow}</p>
               <h1 className={styles.heroTitle}>
@@ -138,6 +153,31 @@ const Home: React.FC = () => {
         </div>
       </div>
 
+            {/* SALE BANNER */}
+      <section className={styles.saleBanner}>
+        <div className={styles.saleContent}>
+          <div>
+            <h2 className={styles.saleTitle}>
+              Rebajas de <em>Temporada</em>
+              <br />
+              Hasta 40% de descuento
+            </h2>
+
+            <p className={styles.saleSub}>
+              Selección limitada · Solo mientras haya existencias
+            </p>
+          </div>
+
+          <button
+            className={styles.saleBtn}
+            onClick={() => navigate("/productos?sale=true")}
+          >
+            VER REBAJAS
+          </button>
+        </div>
+      </section>
+
+
       {/* ── Featured ── */}
       {featured && featured.length > 0 && (
         <section className={styles.featured}>
@@ -163,30 +203,6 @@ const Home: React.FC = () => {
           </div>
         </section>
       )}
-
-      {/* SALE BANNER */}
-      <section className={styles.saleBanner}>
-        <div className={styles.saleContent}>
-          <div>
-            <h2 className={styles.saleTitle}>
-              Rebajas de <em>Temporada</em>
-              <br />
-              Hasta 40% de descuento
-            </h2>
-
-            <p className={styles.saleSub}>
-              Selección limitada · Solo mientras haya existencias
-            </p>
-          </div>
-
-          <button
-            className={styles.saleBtn}
-            onClick={() => navigate("/productos?sale=true")}
-          >
-            VER REBAJAS
-          </button>
-        </div>
-      </section>
 
       {/* SHOP THE LOOK
       <section className={styles.looks}>
@@ -251,7 +267,7 @@ const Home: React.FC = () => {
             <p className={styles.eyebrow2} style={{ color: "var(--dorado)" }}>
               Compra por
             </p>
-            <h2 className={styles.secTitle} style={{ color: "var(--blanco)" }}>
+            <h2 className={styles.secTitle} style={{ color: "var(--negro)" }}>
               Categorías <em>Principales</em>
             </h2>
           </div>
@@ -264,28 +280,28 @@ const Home: React.FC = () => {
               label: "Mujer",
               sub: "Explorar",
               span: true,
-              image: "src/public/images/banners/Looks/mujeres.png",
+              image: "src/public/images/categories/mujeres2.png",
             },
             {
               key: "hombre",
               label: "Hombre",
               sub: "Explorar",
               span: false,
-              image: "src/public/images/banners/hombres.png",
+              image: "src/public/images/categories/hombre2.webp",
             },
             {
               key: "exteriores",
               label: "Exteriores",
               sub: "Descubrir",
               span: false,
-              image: "",
+              image: "src/public/images/categories/exteriores2.webp",
             },
             {
               key: "sale",
               label: "Rebajas",
               sub: "Limitado",
               span: false,
-              image: "",
+              image: "src/public/images/categories/rebajas.webp",
             },
           ].map((cat) => (
             <div
@@ -324,22 +340,7 @@ const Home: React.FC = () => {
         </div>
       </section> */}
 
-      {/* TRENDING */}
-      <section className={styles.trending}>
-        <div className={styles.secHeader}>
-          <h2 className={styles.secTitle}>
-            Trending <em>Now</em>
-          </h2>
-        </div>
-
-        <div className={styles.featGrid}>
-          {featured?.slice(0, 6).map((p) => (
-            <ProductCard key={p.id} product={p} onAddToCart={handleQuickAdd} />
-          ))}
-        </div>
-      </section>
-
-      {/* EDITORIAL BANNER */}
+            {/* EDITORIAL BANNER */}
       <section className={styles.banner}>
         <div className={styles.bannerContent}>
           <p className={styles.eyebrow2}>Nueva Temporada</p>
@@ -357,7 +358,23 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* SHOP THE LOOK */}
+
+      {/* TRENDING */}
+      <section className={styles.trending}>
+        <div className={styles.secHeader}>
+          <h2 className={styles.secTitle}>
+            Trending <em>Now</em>
+          </h2>
+        </div>
+
+        <div className={styles.featGrid}>
+          {featured?.slice(0, 6).map((p) => (
+            <ProductCard key={p.id} product={p} onAddToCart={handleQuickAdd} />
+          ))}
+        </div>
+      </section>
+
+      SHOP THE LOOK
       <section className={styles.looks}>
         <div className={styles.secHeader}>
           <h2 className={styles.secTitle}>

@@ -120,19 +120,30 @@ const ProductDetail: React.FC = () => {
   const sizesForColor: string[] = colorVariants
     .map((v) => v.size)
     .filter((s): s is string => typeof s === "string" && s.length > 0);
-  const matchedVariant = selectedColor && activeSize
-    ? (colorVariants.find((v) => v.size === activeSize) ?? null)
-    : null;
+  const matchedVariant =
+    selectedColor && activeSize
+      ? (colorVariants.find((v) => v.size === activeSize) ?? null)
+      : null;
 
-  const displayImage         = colorVariants[0]?.imageUrl || product.imageUrl || "";
-  const displayPrice         = matchedVariant?.finalPrice  ?? colorVariants[0]?.finalPrice ?? product.price;
-  const displayOriginalPrice = product.originalPrice !== undefined
-    ? product.originalPrice
-    : (colorVariants[0]?.priceModifier ?? 0) < 0 ? product.price : undefined;
-  const displayStock  = matchedVariant?.stock ?? colorVariants[0]?.stock ?? product.stock ?? 0;
-  const displaySizes: string[] = sizesForColor.length > 0
-    ? sizesForColor
-    : Array.isArray(product.sizes) && product.sizes.length > 0 ? (product.sizes as string[]) : [];
+  const displayImage = colorVariants[0]?.imageUrl || product.imageUrl || "";
+  const selectedVariant = matchedVariant ?? colorVariants[0];
+
+  const displayPrice = selectedVariant?.finalPrice ?? product.price;
+
+  const displayOriginalPrice =
+    selectedVariant &&
+    selectedVariant.finalPrice &&
+    selectedVariant.finalPrice < product.price
+      ? product.price
+      : undefined;
+  const displayStock =
+    matchedVariant?.stock ?? colorVariants[0]?.stock ?? product.stock ?? 0;
+  const displaySizes: string[] =
+    sizesForColor.length > 0
+      ? sizesForColor
+      : Array.isArray(product.sizes) && product.sizes.length > 0
+        ? (product.sizes as string[])
+        : [];
 
   const variantHex  = colorVariants[0]?.colorHex;
   const productHex  = Array.isArray(product.colors) && product.colors.length > 0 ? product.colors[0].hex : undefined;

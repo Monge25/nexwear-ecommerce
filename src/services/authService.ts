@@ -72,13 +72,36 @@ const authService = {
     })
   },
 
-  isAuthenticated(): boolean {
-    return !!localStorage.getItem(TOKEN_KEY)
-  },
+// ── Addresses ─────────────────────────────────────────
 
-  getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY)
-  },
+async getAddresses() {
+  const { data } = await apiClient.get("/users/addresses")
+  return data
+},
+
+async addAddress(address: any) {
+  const { data } = await apiClient.post(
+    "/users/addresses",
+    address
+  )
+  return data
+},
+
+async updateAddress(
+  id: string,
+  address: any
+) {
+  const { data } = await apiClient.put(
+    `/users/addresses/${id}`,
+    address
+  )
+  return data
+},
+
+async deleteAddress(id: string) {
+  await apiClient.delete(
+    `/users/addresses/${id}`
+  )
+},
 }
-
 export default authService
