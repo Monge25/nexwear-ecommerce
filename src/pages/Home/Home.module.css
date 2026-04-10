@@ -874,3 +874,106 @@
 .saleBtn:hover {
   background: #b48d50;
 }
+
+.carousel {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+.carousel > * {
+  min-width: 350px;
+  max-width: 350px;
+  flex-shrink: 0;
+}
+
+.carousel::-webkit-scrollbar {
+  display: none;
+}
+/* ── Carousel ── */
+.carouselControls {
+  display: flex;
+  gap: 8px;
+}
+
+.carouselArrow {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--negro);
+  transition: all 0.3s;
+}
+
+.carouselArrow:hover:not(:disabled) {
+  border-color: var(--dorado);
+  color: var(--dorado);
+}
+
+.carouselArrow:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.carouselTrack {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+
+.carouselTrack::-webkit-scrollbar {
+  display: none;
+}
+
+.carouselCard {
+  min-width: 320px;
+  max-width: 320px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
+.carouselDots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 32px;
+}
+
+.carouselDot {
+  width: 28px;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.15);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.3s, transform 0.3s;
+}
+
+.carouselDotActive {
+  background: var(--dorado);
+  transform: scaleX(1.3);
+}
+
+/* ── Fix catOverlay (reemplaza styles.overlay) ── */
+.catOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 55%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .carouselCard {
+    min-width: 260px;
+    max-width: 260px;
+  }
+}

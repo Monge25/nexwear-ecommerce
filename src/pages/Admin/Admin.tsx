@@ -10,6 +10,8 @@ import styles from "./Admin.module.css";
 import { VariantManager } from "./VariantManager";
 import env from "@/config/environment";
 import { PagedResult } from "@/types/pagination";
+import { LayoutDashboard, Package, ShoppingBag, Users } from "lucide-react";
+import { Star } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const BASE = env.API_BASE_URL;
@@ -558,6 +560,11 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
             value: String(totalProducts),
             accent: styles.accentRed,
           },
+          {
+            label: "Reseñas",
+            value: String(totalUsers),
+            accent: styles.accentBlue,
+          },
         ].map((k) => (
           <div key={k.label} className={`${styles.kpiCard} ${k.accent}`}>
             <p className={styles.kpiLabel}>{k.label}</p>
@@ -727,7 +734,7 @@ const ProductsSection: React.FC<{
   }, [products]);
 
   useEffect(() => {
-    setPage(1)
+    setPage(1);
   }, [debouncedSearch, sortOrder]);
 
   // ── handleSave ──────────────────────────────────────────────────────────────
@@ -1534,14 +1541,177 @@ const UsersSection: React.FC<{
   );
 };
 
-// ─── Main Admin Component ─────────────────────────────────────────────────────
-type Tab = "dashboard" | "products" | "orders" | "users";
+// ─── Reviews ─────────────────────────────────────────────────────
+const ReviewsSection: React.FC<{
+  token: string;
+  show: (msg: string, type?: "success" | "error") => void;
+}> = ({ token, show }) => {
 
-const NAV_ITEMS: { tab: Tab; icon: string; label: string }[] = [
-  { tab: "dashboard", icon: "◈", label: "Dashboard" },
-  { tab: "products", icon: "◫", label: "Productos" },
-  { tab: "orders", icon: "◻", label: "Pedidos" },
-  { tab: "users", icon: "◉", label: "Usuarios" },
+  const [page, setPage] = useState(1);
+
+  const fetchReviews = useCallback(
+    () => apiCall<Paginated<any>>(`/Reviews?page=${page}&limit=20`, token),
+    [page, token]
+  );
+
+  const { data, loading, refetch } = useFetch(fetchReviews, [page, token]);
+
+  const reviews =
+    (data as any)?.data ?? (Array.isArray(data) ? data : []);
+
+  const total =
+    (data as any)?.total ?? reviews.length;
+
+  const approveReview = async (id: string) => {
+    try {
+      await apiCall(`/Reviews/${id}/approve`, token, {
+        method: "PATCH"
+      });
+
+      show("Reseña aprobada");
+      refetch();
+
+    } catch (e: any) {
+      show("Error: " + e.message, "error");
+    }
+  };
+
+  const deleteReview = async (id: string) => {
+    if (!confirm("¿Eliminar esta reseña?")) return;
+
+    try {
+      await apiCall(`/Reviews/${id}`, token, {
+        method: "DELETE"
+      });
+
+      show("Reseña eliminada");
+      refetch();
+
+    } catch (e: any) {
+      show("Error: " + e.message, "error");
+    }
+  };
+
+  return (
+    <>
+      <div className={styles.tabHeader}>
+        <h1 className={styles.pageTitle}>Reseñas</h1>
+      </div>
+
+      {loading ? (
+        <Loader />
+      ) : (
+        <>
+          <div className={styles.card}>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Usuario</th>
+                    <th>Rating</th>
+                    <th>Comentario</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {reviews.length ? (
+                    reviews.map((r: any) => (
+                      <tr key={r.id}>
+                        <td>
+                          <div className={styles.prodCell}>
+                            <img
+                              src={r.product?.imageUrl}
+                              className={styles.prodImg}
+                            />
+                            <span>{r.product?.name}</span>
+                          </div>
+                        </td>
+
+                        <td>
+                          {r.user?.firstName} {r.user?.lastName}
+                        </td>
+
+                        <td>
+                          ⭐ {r.rating}
+                        </td>
+
+                        <td style={{ maxWidth: 280 }}>
+                          {r.comment}
+                        </td>
+
+                        <td>
+                          {r.isApproved ? (
+                            <span className={`${styles.badge} ${styles.badgeGreen}`}>
+                              Aprobada
+                            </span>
+                          ) : (
+                            <span className={`${styles.badge} ${styles.badgeGray}`}>
+                              Pendiente
+                            </span>
+                          )}
+                        </td>
+
+                        <td>
+                          <div className={styles.actionBtns}>
+
+                            {!r.isApproved && (
+                              <button
+                                className={styles.btnEdit}
+                                onClick={() => approveReview(r.id)}
+                              >
+                                Aprobar
+                              </button>
+                            )}
+
+                            <button
+                              className={styles.btnDanger}
+                              onClick={() => deleteReview(r.id)}
+                            >
+                              Eliminar
+                            </button>
+
+                          </div>
+                        </td>
+
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className={styles.empty}>
+                        Sin reseñas
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+
+              </table>
+            </div>
+          </div>
+
+          <Pagination
+            page={page}
+            total={total}
+            onPrev={() => setPage((p) => p - 1)}
+            onNext={() => setPage((p) => p + 1)}
+          />
+        </>
+      )}
+    </>
+  );
+};
+
+// ─── Main Admin Component ─────────────────────────────────────────────────────
+type Tab = "dashboard" | "products" | "orders" | "users" | "reviews";
+
+const NAV_ITEMS: { tab: Tab; icon: React.ReactNode; label: string }[] = [
+  { tab: "dashboard", icon: <LayoutDashboard size={15} />, label: "Dashboard" },
+  { tab: "products", icon: <Package size={15} />, label: "Productos" },
+  { tab: "orders", icon: <ShoppingBag size={15} />, label: "Pedidos" },
+  { tab: "users", icon: <Users size={15} />, label: "Usuarios" },
+  { tab: "reviews", icon: <Star size={15} />, label: "Reseñas" },
 ];
 
 const Admin: React.FC = () => {
@@ -1597,6 +1767,7 @@ const Admin: React.FC = () => {
         )}
         {tab === "orders" && <OrdersSection token={authToken} show={show} />}
         {tab === "users" && <UsersSection token={authToken} show={show} />}
+        {tab === "reviews" && (<ReviewsSection token={authToken} show={show} />)}
       </main>
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}

@@ -7,7 +7,6 @@ import { useCart } from "@/hooks/useCart";
 import type { Product } from "@/types";
 import styles from "./Home.module.css";
 
-// ── Hero slides ───────────────────────────────────────────────────────────────
 const SLIDES = [
   {
     eyebrow: "SS25 — Nueva Colección",
@@ -32,20 +31,120 @@ const SLIDES = [
   },
 ];
 
+// ── Carrusel reutilizable ─────────────────────────────────────────────────────
+interface CarouselProps {
+  title: string;
+  titleEm: string;
+  products: Product[];
+  onAddToCart: (p: Product) => void;
+}
+
+const ProductCarousel: React.FC<CarouselProps> = ({
+  title,
+  titleEm,
+  products,
+  onAddToCart,
+}) => {
+  const trackRef = React.useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = React.useState(0);
+
+  const CARD_WIDTH = 320 + 16; // minWidth + gap
+
+  const scrollTo = React.useCallback(
+    (index: number) => {
+      const clamped = Math.max(0, Math.min(index, products.length - 1));
+      setActiveIndex(clamped);
+      trackRef.current?.scrollTo({
+        left: clamped * CARD_WIDTH,
+        behavior: "smooth",
+      });
+    },
+    [products.length],
+  );
+
+  // Sincronizar dots al hacer scroll manual
+  const handleScroll = () => {
+    if (!trackRef.current) return;
+    const index = Math.round(trackRef.current.scrollLeft / CARD_WIDTH);
+    setActiveIndex(index);
+  };
+
+  if (!products.length) return null;
+
+  return (
+    <section className={styles.trending}>
+      {/* Header */}
+      <div className={styles.secHeader}>
+        <div>
+          <span className={styles.eyebrow2}>Colección</span>
+          <h2 className={styles.secTitle}>
+            {title} <em>{titleEm}</em>
+          </h2>
+        </div>
+
+        <div className={styles.carouselControls}>
+          <button
+            className={styles.carouselArrow}
+            onClick={() => scrollTo(activeIndex - 1)}
+            disabled={activeIndex === 0}
+            aria-label="Anterior"
+          >
+            ←
+          </button>
+          <button
+            className={styles.carouselArrow}
+            onClick={() => scrollTo(activeIndex + 1)}
+            disabled={activeIndex >= products.length - 1}
+            aria-label="Siguiente"
+          >
+            →
+          </button>
+        </div>
+      </div>
+
+      {/* Track */}
+      <div
+        className={styles.carouselTrack}
+        ref={trackRef}
+        onScroll={handleScroll}
+      >
+        {products.map((p) => (
+          <div key={p.id} className={styles.carouselCard}>
+            <ProductCard product={p} onAddToCart={onAddToCart} />
+          </div>
+        ))}
+      </div>
+
+      {/* Dots */}
+      <div className={styles.carouselDots}>
+        {products.map((_, i) => (
+          <button
+            key={i}
+            className={`${styles.carouselDot} ${
+              i === activeIndex ? styles.carouselDotActive : ""
+            }`}
+            onClick={() => scrollTo(i)}
+            aria-label={`Producto ${i + 1}`}
+          />
+        ))}
+      </div>
+    </section>
+  );
+};
+
+// ── Home ──────────────────────────────────────────────────────────────────────
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const [slide, setSlide] = React.useState(0);
   const { addItem } = useCart();
   const { data: featured } = useFetch(() => productService.getFeatured(), []);
 
-  const { data: products, loading: loadingProducts } = useFetch(
-    () => productService.getProducts({ limit: 8 }),
-    []
+  // ✅ limit subido a 20 para tener productos de ambas categorías
+  const { data: products } = useFetch(
+    () => productService.getProducts({ limit: 20 }),
+    [],
   );
 
-  console.log("PRODUCTOS API:", products);
-
-  // Auto-advance hero
   React.useEffect(() => {
     const t = setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 5000);
     return () => clearInterval(t);
@@ -53,14 +152,20 @@ const Home: React.FC = () => {
 
   const handleQuickAdd = (p: Product) => {
     const size = p.sizes?.[0] ?? "M";
-
-    const color = p.colors?.[0] ?? {
-      name: "Negro",
-      hex: "#000",
-    };
-
+    const color = p.colors?.[0] ?? { name: "Negro", hex: "#000" };
     addItem(p, 1, size, color);
   };
+
+  // ✅ Filtros separados con límite de 10
+  const mujerProducts =
+    products?.data
+      ?.filter((p: Product) => p.category === "mujer")
+      .slice(0, 10) ?? [];
+
+  const hombreProducts =
+    products?.data
+      ?.filter((p: Product) => p.category === "hombre")
+      .slice(0, 10) ?? [];
 
   return (
     <main>
@@ -73,9 +178,7 @@ const Home: React.FC = () => {
           >
             <div
               className={styles.slideBg}
-              style={{
-                backgroundImage: `url(${s.image})`,
-              }}
+              style={{ backgroundImage: `url(${s.image})` }}
             />
             <div className={styles.slideContent}>
               <p className={styles.eyebrow}>{s.eyebrow}</p>
@@ -97,7 +200,6 @@ const Home: React.FC = () => {
             </div>
           </div>
         ))}
-        {/* Progress dots */}
         <div className={styles.dots}>
           {SLIDES.map((_, i) => (
             <button
@@ -107,7 +209,6 @@ const Home: React.FC = () => {
             />
           ))}
         </div>
-        {/* Arrows */}
         <div className={styles.arrows}>
           <button
             className={styles.arrow}
@@ -153,7 +254,7 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-            {/* SALE BANNER */}
+      {/* ── Sale Banner ── */}
       <section className={styles.saleBanner}>
         <div className={styles.saleContent}>
           <div>
@@ -162,12 +263,10 @@ const Home: React.FC = () => {
               <br />
               Hasta 40% de descuento
             </h2>
-
             <p className={styles.saleSub}>
               Selección limitada · Solo mientras haya existencias
             </p>
           </div>
-
           <button
             className={styles.saleBtn}
             onClick={() => navigate("/productos?sale=true")}
@@ -176,7 +275,6 @@ const Home: React.FC = () => {
           </button>
         </div>
       </section>
-
 
       {/* ── Featured ── */}
       {featured && featured.length > 0 && (
@@ -204,62 +302,6 @@ const Home: React.FC = () => {
         </section>
       )}
 
-      {/* SHOP THE LOOK
-      <section className={styles.looks}>
-        <div className={styles.secHeader}>
-          <h2 className={styles.secTitle}>
-            Piezas <em>Destacadas</em>
-            <p className={styles.eyebrow2}>Nueva Temporada</p>
-          </h2>
-        </div>
-
-        <div className={styles.lookCarousel}>
-          <div className={styles.lookCard}>
-            <img
-              src="src/public/images/banners/Prendas/prenda1.png"
-              alt="Prenda 1"
-            />
-            <div className={styles.lookInfo}>
-              <h4>Conjunto elegante en tonos oliva y beige</h4>
-              <p>Explorar</p>
-            </div>
-          </div>
-
-          <div className={styles.lookCard}>
-            <img
-              src="src/public/images/banners/Prendas/prenda2.png"
-              alt="Prenda 2"
-            />
-            <div className={styles.lookInfo}>
-              <h4>Vestido largo de lino</h4>
-              <p>Explorar</p>
-            </div>
-          </div>
-
-          <div className={styles.lookCard}>
-            <img
-              src="src/public/images/banners/Prendas/prenda3.png"
-              alt="Prenda 3"
-            />
-            <div className={styles.lookInfo}>
-              <h4>Pantalones de talle alto taupe</h4>
-              <p>Explorar</p>
-            </div>
-          </div>
-
-          <div className={styles.lookCard}>
-            <img
-              src="src/public/images/banners/Prendas/prenda4.png"
-              alt="Prenda 4"
-            />
-            <div className={styles.lookInfo}>
-              <h4>Conjunto Elegante en lino</h4>
-              <p>Explorar</p>
-            </div>
-          </div>
-        </div>
-      </section> */}
-
       {/* ── Categories ── */}
       <section className={styles.cats}>
         <div className={styles.secHeader}>
@@ -272,7 +314,6 @@ const Home: React.FC = () => {
             </h2>
           </div>
         </div>
-
         <div className={styles.catsGrid}>
           {[
             {
@@ -310,45 +351,25 @@ const Home: React.FC = () => {
               style={{ backgroundImage: `url(${cat.image})` }}
               onClick={() => navigate(`/productos?category=${cat.key}`)}
             >
-              <div className={styles.overlay}></div>
-
+              {/* ✅ overlay como elemento, no como clase externa */}
+              <div className={styles.catOverlay} />
               <div className={styles.catInfo}>
                 <small>{cat.sub}</small>
                 <strong>{cat.label}</strong>
               </div>
-
               <span className={styles.catArrow}>→</span>
             </div>
           ))}
         </div>
       </section>
 
-      {/* TRENDING
-      <section className={styles.trending1}>
-        <div className={styles.secHeader}>
-          <h2 className={styles.secTitle}>
-            <em></em>
-          </h2>
-        </div>
-
-        <div className={styles.featGrid}>
-          {loadingProducts && <p>Cargando productos...</p>}
-
-          {products?.data?.slice(0, 6).map((p) => (
-            <ProductCard key={p.id} product={p} onAddToCart={handleQuickAdd} />
-          ))}
-        </div>
-      </section> */}
-
-            {/* EDITORIAL BANNER */}
+      {/* ── Banner Editorial ── */}
       <section className={styles.banner}>
         <div className={styles.bannerContent}>
           <p className={styles.eyebrow2}>Nueva Temporada</p>
-
           <h2 className={styles.bannerTitle}>
             Minimalismo <em>Atemporal</em>
           </h2>
-
           <button
             className={styles.btnFill}
             onClick={() => navigate("/productos")}
@@ -358,65 +379,21 @@ const Home: React.FC = () => {
         </div>
       </section>
 
+      {/* ── Trending Mujer — Carrusel ── */}
+      <ProductCarousel
+        title="Trending"
+        titleEm="Mujer"
+        products={mujerProducts}
+        onAddToCart={handleQuickAdd}
+      />
 
-      {/* TRENDING */}
-      <section className={styles.trending}>
-        <div className={styles.secHeader}>
-          <h2 className={styles.secTitle}>
-            Trending <em>Now</em>
-          </h2>
-        </div>
-
-        <div className={styles.featGrid}>
-          {featured?.slice(0, 6).map((p) => (
-            <ProductCard key={p.id} product={p} onAddToCart={handleQuickAdd} />
-          ))}
-        </div>
-      </section>
-
-      SHOP THE LOOK
-      <section className={styles.looks}>
-        <div className={styles.secHeader}>
-          <h2 className={styles.secTitle}>
-            Shop the <em>Look</em>
-            {/* <p className={styles.eyebrow2}>Nueva Temporada</p> */}
-          </h2>
-        </div>
-
-        <div className={styles.lookCarousel}>
-          <div className={styles.lookCard}>
-            <img src="src/public/images/banners/Looks/look1.png" alt="Look 1" />
-            <div className={styles.lookInfo}>
-              <h4>Minimal Suit</h4>
-              <p>Explorar</p>
-            </div>
-          </div>
-
-          <div className={styles.lookCard}>
-            <img src="src/public/images/banners/Looks/look2.png" alt="Look 2" />
-            <div className={styles.lookInfo}>
-              <h4>Modern Elegance</h4>
-              <p>Explorar</p>
-            </div>
-          </div>
-
-          <div className={styles.lookCard}>
-            <img src="src/public/images/banners/Looks/look3.png" alt="Look 3" />
-            <div className={styles.lookInfo}>
-              <h4>Urban Style</h4>
-              <p>Explorar</p>
-            </div>
-          </div>
-
-          <div className={styles.lookCard}>
-            <img src="src/public/images/banners/Looks/look4.png" alt="Look 4" />
-            <div className={styles.lookInfo}>
-              <h4>Neutral Outfit</h4>
-              <p>Explorar</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ── Trending Hombre — Carrusel ── */}
+      <ProductCarousel
+        title="Trending"
+        titleEm="Hombre"
+        products={hombreProducts}
+        onAddToCart={handleQuickAdd}
+      />
 
       {/* ── Editorial ── */}
       <section className={styles.editorial}>
