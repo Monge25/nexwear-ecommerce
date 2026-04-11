@@ -3,7 +3,7 @@ import type { Product } from "@/types";
 export const mapProductFromApi = (p: any): Product => ({
   id:            p.id,
   name:          p.name,
-  // slug:          p.slug ?? p.name.toLowerCase().replace(/\s+/g, "-"),
+  slug:          p.slug ?? p.name.toLowerCase().replace(/\s+/g, "-"),
   category:      p.category,
   price:         p.price ?? p.basePrice ?? 0,
   originalPrice: p.originalPrice ?? undefined,
