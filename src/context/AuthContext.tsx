@@ -86,29 +86,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
   const hydrateAuth = async () => {
-    console.log("🔥 Hydration started");
 
     try {
       const token = localStorage.getItem("nexwear_token");
-      console.log("TOKEN:", token);
 
       if (!token) {
-        console.log("No token");
         dispatch({ type: "HYDRATED" });
         return;
       }
 
-      console.log("Calling getMe...");
       const user = await authService.getMe();
 
-      console.log("USER RECEIVED:", user);
 
       dispatch({ type: "SET_USER", payload: user });
     } catch (err) {
-      console.log("HYDRATION ERROR", err);
       dispatch({ type: "LOGOUT" });
     } finally {
-      console.log("Hydration finished");
       dispatch({ type: "HYDRATED" });
     }
   };

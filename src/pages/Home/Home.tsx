@@ -12,21 +12,21 @@ const SLIDES = [
     title: "Definida",
     titleEm: "el Silencio",
     desc: "Ropa que habla a través de la contención. Piezas diseñadas para quienes dejan que su presencia hable por ellos.",
-    image: "public/images/banners/banner-5.jpg", 
+    image: "/images/banners/banner-5.jpg", 
   },
   {
     eyebrow: "Esenciales — Edición Limitada",
     title: "Viste el",
     titleEm: "Vacío",
     desc: "Maestría monocromática. Un guardarropa despojado a su forma más esencial.",
-    image: "public/images/banners/banner-3.jpg",
+    image: "/images/banners/banner-3.jpg",
   },
   {
     eyebrow: "Drop Exclusivo",
     title: "Forma",
     titleEm: "Deseo",
     desc: "Piezas exclusivas en cantidades limitadas. Una vez agotadas, desaparecen.",
-    image: "public/images/banners/banner-4.jpg",
+    image: "/images/banners/banner-4.jpg",
   },
 ];
 
@@ -317,28 +317,28 @@ const Home: React.FC = () => {
               label: "Mujer",
               sub: "Explorar",
               span: true,
-              image: "public/images/categories/mujeres2.png",
+              image: "/images/categories/mujeres2.png",
             },
             {
               key: "hombre",
               label: "Hombre",
               sub: "Explorar",
               span: false,
-              image: "public/images/categories/hombre2.webp",
+              image: "/images/categories/hombre2.webp",
             },
             {
               key: "exteriores",
               label: "Exteriores",
               sub: "Descubrir",
               span: false,
-              image: "public/images/categories/exteriores2.webp",
+              image: "/images/categories/exteriores2.webp",
             },
             {
               key: "sale",
               label: "Rebajas",
               sub: "Limitado",
               span: false,
-              image: "public/images/categories/rebajas.webp",
+              image: "/images/categories/rebajas.webp",
             },
           ].map((cat) => (
             <div
