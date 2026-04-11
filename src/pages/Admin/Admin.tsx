@@ -560,11 +560,11 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
             value: String(totalProducts),
             accent: styles.accentRed,
           },
-          {
-            label: "Reseñas",
-            value: String(totalUsers),
-            accent: styles.accentBlue,
-          },
+          // {
+          //   label: "Reseñas",
+          //   value: String(totalUsers),
+          //   accent: styles.accentBlue,
+          // },
         ].map((k) => (
           <div key={k.label} className={`${styles.kpiCard} ${k.accent}`}>
             <p className={styles.kpiLabel}>{k.label}</p>

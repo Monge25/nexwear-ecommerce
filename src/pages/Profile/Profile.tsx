@@ -271,7 +271,7 @@ const Profile: React.FC = () => {
             />
 
             <Input
-              label="Calle"
+              label="Calle y Número"
               value={addressForm.street}
               onChange={(e) =>
                 setAddressForm({

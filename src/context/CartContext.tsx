@@ -52,15 +52,28 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       const newKey = key(action.payload);
       const existing = state.items.find((i) => key(i) === newKey);
 
+      // Buscar la variante que coincide con color + talla para leer su stock
+      const variant = action.payload.product.variants?.find(
+        (v) =>
+          v.color === action.payload.selectedColor.name &&
+          v.size === action.payload.selectedSize,
+      );
+      const maxStock =
+        variant?.stock ?? action.payload.product.stock ?? Infinity;
+
       if (existing) {
+        // No superar el stock al sumar cantidad
+        const newQty = Math.min(
+          existing.quantity + action.payload.quantity,
+          maxStock,
+        );
         return {
           ...state,
           items: state.items.map((i) =>
             key(i) === newKey
               ? {
                   ...i,
-                  quantity: i.quantity + action.payload.quantity,
-                  // ✅ Actualiza la imagen si viene una nueva
+                  quantity: newQty,
                   variantImage: action.payload.variantImage ?? i.variantImage,
                 }
               : i,
@@ -68,9 +81,15 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         };
       }
 
+      // Clampear cantidad inicial al stock disponible
+      const clampedQty = Math.min(action.payload.quantity, maxStock);
+
+      // Si no hay stock, no agregar el item
+      if (clampedQty <= 0) return state;
+
       return {
         ...state,
-        items: [...state.items, action.payload],
+        items: [...state.items, { ...action.payload, quantity: clampedQty }],
       };
     }
 
@@ -108,13 +127,21 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
       return {
         ...state,
-        items: state.items.map((i) =>
-          i.product.id === productId &&
-          i.selectedSize === size &&
-          i.selectedColor.name === colorName
-            ? { ...i, quantity }
-            : i,
-        ),
+        items: state.items.map((i) => {
+          if (
+            i.product.id === productId &&
+            i.selectedSize === size &&
+            i.selectedColor.name === colorName
+          ) {
+            // ✅ Buscar variante y respetar su stock máximo
+            const variant = i.product.variants?.find(
+              (v) => v.color === colorName && v.size === size,
+            );
+            const maxStock = variant?.stock ?? i.product.stock ?? Infinity;
+            return { ...i, quantity: Math.min(quantity, maxStock) };
+          }
+          return i;
+        }),
       };
     }
 
@@ -143,7 +170,6 @@ interface CartContextValue extends CartState {
   total: number;
   freeShippingRemaining: number;
 
-  // ✅ variantImage agregado como parámetro opcional
   addItem: (
     product: Product,
     qty: number,
@@ -204,7 +230,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   const total = subtotal + shipping;
   const freeShippingRemaining = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
 
-  // ✅ addItem ahora acepta variantImage y la guarda en el CartItem
   const addItem = useCallback(
     (
       product: Product,
@@ -220,7 +245,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
           quantity,
           selectedSize,
           selectedColor,
-          variantImage, // ✅ se guarda en el item
+          variantImage,
         },
       });
       dispatch({ type: "OPEN" });

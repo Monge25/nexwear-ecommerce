@@ -70,10 +70,13 @@ const ProductDetail: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { has, toggle } = useWishlist();
 
+  const [zoomVisible, setZoomVisible] = useState(false);
+  const [zoomStyle, setZoomStyle] = useState({});
+
   const [activeColor, setActiveColor] = useState<string | null>(null);
-  const [activeSize, setActiveSize]   = useState<Size | null>(null);
-  const [quantity, setQuantity]       = useState(1);
-  const [sizeError, setSizeError]     = useState(false);
+  const [activeSize, setActiveSize] = useState<Size | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [sizeError, setSizeError] = useState(false);
   const [adding, setAdding]           = useState(false);
   const [authOpen, setAuthOpen]       = useState(false);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
@@ -115,8 +118,10 @@ const ProductDetail: React.FC = () => {
       </div>
     );
 
-  const selectedColor  = activeColor ?? uniqueColors[0] ?? null;
-  const colorVariants  = selectedColor ? (colorGroups.get(selectedColor) ?? []) : [];
+  const selectedColor = activeColor ?? uniqueColors[0] ?? null;
+  const colorVariants = selectedColor
+    ? (colorGroups.get(selectedColor) ?? [])
+    : [];
   const sizesForColor: string[] = colorVariants
     .map((v) => v.size)
     .filter((s): s is string => typeof s === "string" && s.length > 0);
@@ -145,15 +150,19 @@ const ProductDetail: React.FC = () => {
         ? (product.sizes as string[])
         : [];
 
-  const variantHex  = colorVariants[0]?.colorHex;
-  const productHex  = Array.isArray(product.colors) && product.colors.length > 0 ? product.colors[0].hex : undefined;
+  const variantHex = colorVariants[0]?.colorHex;
+  const productHex =
+    Array.isArray(product.colors) && product.colors.length > 0
+      ? product.colors[0].hex
+      : undefined;
   const selectedHex = variantHex ?? productHex ?? "#f5f5f5";
 
-  const baseColors: ProductColor[] = Array.isArray(product.colors) && product.colors.length > 0
-    ? (product.colors as ProductColor[])
-    : [{ name: "Negro", hex: "#0a0a0a" }];
+  const baseColors: ProductColor[] =
+    Array.isArray(product.colors) && product.colors.length > 0
+      ? (product.colors as ProductColor[])
+      : [{ name: "Negro", hex: "#0a0a0a" }];
 
-  const liked           = isAuthenticated ? has(product.id) : false;
+  const liked = isAuthenticated ? has(product.id) : false;
   const relatedProducts = Array.isArray(related) ? related : [];
 
   const handleSelectColor = (color: string) => {
@@ -163,13 +172,48 @@ const ProductDetail: React.FC = () => {
   };
 
   const handleAdd = async () => {
-    if (!isAuthenticated) { setAuthOpen(true); return; }
-    if (displaySizes.length > 0 && !activeSize) { setSizeError(true); return; }
+    if (!isAuthenticated) {
+      setAuthOpen(true);
+      return;
+    }
+
+    // ❌ Sin stock
+    if (displayStock <= 0) {
+      return;
+    }
+
+    // ❌ Cantidad mayor al stock
+    if (quantity > displayStock) {
+      setQuantity(displayStock);
+      return;
+    }
+
+    if (displaySizes.length > 0 && !activeSize) {
+      setSizeError(true);
+      return;
+    }
+
     setSizeError(false);
     setAdding(true);
-    const color: ProductColor = selectedColor ? { name: selectedColor, hex: selectedHex } : baseColors[0];
+
+    const color: ProductColor = selectedColor
+      ? { name: selectedColor, hex: selectedHex }
+      : baseColors[0];
+
     const size: Size = activeSize ?? (displaySizes[0] as Size) ?? "M";
-    addItem({ ...product, price: displayPrice, imageUrl: displayImage }, quantity, size, color);
+
+    addItem(
+      {
+        ...product,
+        price: displayPrice,
+        imageUrl: displayImage,
+        stock: displayStock,
+      },
+      quantity,
+      size,
+      color,
+    );
+
     setTimeout(() => setAdding(false), 600);
   };
 
@@ -186,63 +230,78 @@ const ProductDetail: React.FC = () => {
   // Breadcrumb clickeable
   const breadcrumbs = [
     { label: "Inicio", path: "/" },
-    { label: product.category.charAt(0).toUpperCase() + product.category.slice(1), path: `/productos?category=${product.category}` },
+    {
+      label:
+        product.category.charAt(0).toUpperCase() + product.category.slice(1),
+      path: `/productos?category=${product.category}`,
+    },
     { label: product.name, path: null },
   ];
 
   return (
     <div className={styles.page}>
       <div className={styles.inner}>
-
         {/* ── Galería ── */}
         <div className={styles.gallery}>
-          <div className={styles.mainImg} style={{ background: selectedHex }}>
-            {displayImage ? (
-              <img src={displayImage} alt={product.name} className={styles.productImg} />
-            ) : (
-              <div className={styles.imgPlaceholder}><span>NEXWEAR</span></div>
+          <div
+            className={styles.mainImg}
+            style={{ background: selectedHex }}
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+
+              const x = e.clientX - rect.left;
+              const y = e.clientY - rect.top;
+
+              setZoomStyle({
+                left: x,
+                top: y,
+                backgroundPosition: `${(x / rect.width) * 100}% ${(y / rect.height) * 100}%`,
+              });
+            }}
+            onMouseEnter={() => setZoomVisible(true)}
+            onMouseLeave={() => setZoomVisible(false)}
+          >
+            {displayImage && (
+              <>
+                <img
+                  src={displayImage}
+                  alt={product.name}
+                  className={styles.productImg}
+                />
+
+                <div
+                  className={`${styles.zoom} ${
+                    zoomVisible ? styles.zoomVisible : ""
+                  }`}
+                  style={{
+                    backgroundImage: `url(${displayImage})`,
+                    ...zoomStyle,
+                  }}
+                />
+              </>
             )}
           </div>
-
-          {hasVariants && uniqueColors.length > 1 && (
-            <div className={styles.thumbs}>
-              {uniqueColors.map((colorName) => {
-                const first = colorGroups.get(colorName)![0];
-                const isOn  = selectedColor === colorName;
-                return (
-                  <button
-                    key={colorName}
-                    className={`${styles.thumb} ${isOn ? styles.thumbOn : ""}`}
-                    onClick={() => handleSelectColor(colorName)}
-                    title={colorName}
-                  >
-                    {first.imageUrl ? (
-                      <img src={first.imageUrl} alt={colorName} />
-                    ) : (
-                      <div style={{ width: "100%", height: "100%", background: first.colorHex ?? "#888" }} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* ── Info ── */}
         <div className={styles.info}>
-
           {/* Breadcrumb clickeable */}
           <nav className={styles.breadcrumbs}>
             {breadcrumbs.map((b, i) => (
               <span key={i}>
                 {b.path ? (
-                  <button className={styles.breadcrumbLink} onClick={() => navigate(b.path!)}>
+                  <button
+                    className={styles.breadcrumbLink}
+                    onClick={() => navigate(b.path!)}
+                  >
                     {b.label}
                   </button>
                 ) : (
                   <span className={styles.breadcrumbCurrent}>{b.label}</span>
                 )}
-                {i < breadcrumbs.length - 1 && <span className={styles.breadcrumbSep}>/</span>}
+                {i < breadcrumbs.length - 1 && (
+                  <span className={styles.breadcrumbSep}>/</span>
+                )}
               </span>
             ))}
           </nav>
@@ -250,33 +309,56 @@ const ProductDetail: React.FC = () => {
           <div className={styles.nameRow}>
             <h1 className={styles.name}>{product.name}</h1>
             {/* Botón compartir */}
-            <button className={styles.shareBtn} onClick={handleShare} title="Compartir">
+            <button
+              className={styles.shareBtn}
+              onClick={handleShare}
+              title="Compartir"
+            >
               {copied ? (
                 <span className={styles.copiedMsg}>¡Copiado!</span>
               ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
                 </svg>
               )}
             </button>
           </div>
 
           <div className={styles.priceRow}>
-            <Price price={displayPrice} originalPrice={displayOriginalPrice} size="lg" />
+            <Price
+              price={displayPrice}
+              originalPrice={displayOriginalPrice}
+              size="lg"
+            />
           </div>
 
-          <Rating value={product.rating} count={product.reviewCount} size="md" />
+          <Rating
+            value={product.rating}
+            count={product.reviewCount}
+            size="md"
+          />
 
           {/* ── Selector de color ── */}
           {hasVariants ? (
             <div className={styles.optSection}>
-              <p className={styles.optLabel}>Color — <span>{selectedColor}</span></p>
+              <p className={styles.optLabel}>
+                Color — <span>{selectedColor}</span>
+              </p>
               <div className={styles.swatches}>
                 {uniqueColors.map((colorName) => {
                   const first = colorGroups.get(colorName)![0];
-                  const isOn  = selectedColor === colorName;
+                  const isOn = selectedColor === colorName;
                   return (
                     <button
                       key={colorName}
@@ -293,10 +375,17 @@ const ProductDetail: React.FC = () => {
           ) : (
             baseColors.length > 1 && (
               <div className={styles.optSection}>
-                <p className={styles.optLabel}>Color — <span>{baseColors[0].name}</span></p>
+                <p className={styles.optLabel}>
+                  Color — <span>{baseColors[0].name}</span>
+                </p>
                 <div className={styles.swatches}>
                   {baseColors.map((c) => (
-                    <button key={c.name} className={styles.swatch} style={{ background: c.hex }} title={c.name} />
+                    <button
+                      key={c.name}
+                      className={styles.swatch}
+                      style={{ background: c.hex }}
+                      title={c.name}
+                    />
                   ))}
                 </div>
               </div>
@@ -307,7 +396,10 @@ const ProductDetail: React.FC = () => {
           <div className={styles.optSection}>
             <p className={styles.optLabel}>
               Talla
-              <button className={styles.guideLink} onClick={() => setSizeGuideOpen(true)}>
+              <button
+                className={styles.guideLink}
+                onClick={() => setSizeGuideOpen(true)}
+              >
                 Guía de tallas →
               </button>
             </p>
@@ -317,16 +409,23 @@ const ProductDetail: React.FC = () => {
                   <button
                     key={s}
                     className={`${styles.sizeBtn} ${activeSize === s ? styles.sizeOn : ""}`}
-                    onClick={() => { setActiveSize(s as Size); setSizeError(false); }}
+                    onClick={() => {
+                      setActiveSize(s as Size);
+                      setSizeError(false);
+                    }}
                   >
                     {s}
                   </button>
                 ))}
               </div>
             ) : (
-              <p style={{ fontSize: 12, color: "var(--g400, #9a9a9a)" }}>Talla única</p>
+              <p style={{ fontSize: 12, color: "var(--g400, #9a9a9a)" }}>
+                Talla única
+              </p>
             )}
-            {sizeError && <p className={styles.sizeError}>Por favor selecciona una talla</p>}
+            {sizeError && (
+              <p className={styles.sizeError}>Por favor selecciona una talla</p>
+            )}
           </div>
 
           {/* ── Cantidad ── */}
@@ -337,46 +436,105 @@ const ProductDetail: React.FC = () => {
                 className={styles.qtyBtn}
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                 disabled={quantity <= 1}
-              >−</button>
+              >
+                −
+              </button>
+
               <span className={styles.qtyNum}>{quantity}</span>
+
               <button
                 className={styles.qtyBtn}
-                onClick={() => setQuantity((q) => Math.min(displayStock || 10, q + 1))}
-                disabled={quantity >= (displayStock || 10)}
-              >+</button>
+                onClick={() =>
+                  setQuantity((q) => Math.min(displayStock, q + 1))
+                }
+                disabled={quantity >= displayStock || displayStock <= 0}
+              >
+                +
+              </button>
             </div>
           </div>
 
           {/* Stock bajo */}
           {displayStock > 0 && displayStock <= 5 && (
-            <p className={styles.lowStock}>¡Solo quedan {displayStock} unidades!</p>
+            <p className={styles.lowStock}>
+              ¡Solo quedan {displayStock} unidades!
+            </p>
+          )}
+
+          {/* Sin stock */}
+          {displayStock <= 0 && (
+            <p className={styles.outOfStock}>Producto agotado</p>
           )}
 
           {/* Badges de confianza */}
           <div className={styles.trustBadges}>
             <span className={styles.trustBadge}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
               Pago seguro
             </span>
             <span className={styles.trustBadge}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
               Devolución 30 días
             </span>
             <span className={styles.trustBadge}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <rect x="1" y="3" width="15" height="13" />
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                <circle cx="5.5" cy="18.5" r="2.5" />
+                <circle cx="18.5" cy="18.5" r="2.5" />
+              </svg>
               Envío gratis +$150
             </span>
           </div>
 
           {/* CTAs */}
           <div className={styles.ctas}>
-            <Button variant="fill" size="lg" fullWidth loading={adding} onClick={handleAdd}>
-              Añadir a la Bolsa
+            <Button
+              variant="fill"
+              size="lg"
+              fullWidth
+              loading={adding}
+              disabled={displayStock <= 0}
+              onClick={handleAdd}
+            >
+              {displayStock <= 0 ? "Agotado" : "Añadir a la Bolsa"}
             </Button>
             <button
               className={`${styles.wishBtn} ${liked ? styles.wishBtnOn : ""}`}
               aria-label="Favorito"
-              onClick={() => { if (!isAuthenticated) { setAuthOpen(true); return; } toggle(product); }}
+              onClick={() => {
+                if (!isAuthenticated) {
+                  setAuthOpen(true);
+                  return;
+                }
+                toggle(product);
+              }}
             >
               {liked ? "♥" : "♡"}
             </button>
@@ -384,7 +542,14 @@ const ProductDetail: React.FC = () => {
 
           {/* Envío */}
           <div className={styles.shippingBox}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--verde, #1e5c38)" strokeWidth="1.5">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--verde, #1e5c38)"
+              strokeWidth="1.5"
+            >
               <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3" />
               <rect x="9" y="11" width="14" height="10" rx="1" />
               <circle cx="12" cy="21" r="1" />
@@ -399,7 +564,9 @@ const ProductDetail: React.FC = () => {
           {/* ── Acordeón de detalles ── */}
           <div className={styles.accordions}>
             <Accordion title="Descripción" defaultOpen>
-              <p className={styles.accordionText}>{product.description || "Sin descripción disponible."}</p>
+              <p className={styles.accordionText}>
+                {product.description || "Sin descripción disponible."}
+              </p>
             </Accordion>
 
             {(product.material || product.care || product.origin) && (
@@ -429,10 +596,20 @@ const ProductDetail: React.FC = () => {
 
             <Accordion title="Envíos y devoluciones">
               <div className={styles.accordionText}>
-                <p>• Envío gratis en pedidos superiores a <strong>$150 MXN</strong>.</p>
-                <p>• Entrega estimada en <strong>2–4 días hábiles</strong>.</p>
-                <p>• Devoluciones gratuitas dentro de los <strong>30 días</strong> posteriores a la compra.</p>
-                <p>• El producto debe estar sin usar, con etiquetas originales.</p>
+                <p>
+                  • Envío gratis en pedidos superiores a{" "}
+                  <strong>$150 MXN</strong>.
+                </p>
+                <p>
+                  • Entrega estimada en <strong>2–4 días hábiles</strong>.
+                </p>
+                <p>
+                  • Devoluciones gratuitas dentro de los{" "}
+                  <strong>30 días</strong> posteriores a la compra.
+                </p>
+                <p>
+                  • El producto debe estar sin usar, con etiquetas originales.
+                </p>
               </div>
             </Accordion>
 
@@ -446,21 +623,27 @@ const ProductDetail: React.FC = () => {
               </Accordion>
             )}
           </div>
-
         </div>
       </div>
 
       {/* Relacionados */}
       {relatedProducts.length > 0 && (
         <section className={styles.related}>
-          <h2 className={styles.relTitle}>También te puede <em>gustar</em></h2>
+          <h2 className={styles.relTitle}>
+            También te puede <em>gustar</em>
+          </h2>
           <div className={styles.relGrid}>
             {relatedProducts.slice(0, 4).map((p) => (
               <ProductCard
                 key={p.id}
                 product={p}
                 onAddToCart={(prod) =>
-                  addItem(prod, 1, (prod.sizes?.[0] as Size) ?? "M", prod.colors?.[0] ?? { name: "Negro", hex: "#0a0a0a" })
+                  addItem(
+                    prod,
+                    1,
+                    (prod.sizes?.[0] as Size) ?? "M",
+                    prod.colors?.[0] ?? { name: "Negro", hex: "#0a0a0a" },
+                  )
                 }
               />
             ))}
@@ -468,12 +651,24 @@ const ProductDetail: React.FC = () => {
         </section>
       )}
 
-      <div style={{ maxWidth: "var(--max-w)", margin: "0 auto", padding: "0 52px" }}>
+      <div
+        style={{
+          maxWidth: "var(--max-w)",
+          margin: "0 auto",
+          padding: "0 52px",
+        }}
+      >
         <ReviewSection productId={product.id} />
       </div>
 
-      {sizeGuideOpen && <SizeGuideModal onClose={() => setSizeGuideOpen(false)} />}
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} reason="Inicia sesión para continuar" />
+      {sizeGuideOpen && (
+        <SizeGuideModal onClose={() => setSizeGuideOpen(false)} />
+      )}
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        reason="Inicia sesión para continuar"
+      />
     </div>
   );
 };

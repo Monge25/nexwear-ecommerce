@@ -278,3 +278,39 @@
     position: static;
   }
 }
+
+/* Item con stock agotado — atenúa todo el card */
+.itemOutOfStock {
+  opacity: 0.6;
+}
+
+/* Overlay encima de la imagen */
+.outOfStockOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit; /* hereda del contenedor */
+}
+
+.itemImg {
+  position: relative; 
+}
+
+.stockWarning {
+  font-size: 0.75rem;
+  color: #c0392b;
+  margin: 4px 0 0;
+}
+
+.qty button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

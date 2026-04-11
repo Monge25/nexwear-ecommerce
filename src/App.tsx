@@ -5,20 +5,27 @@ import { WishlistProvider } from "./context/WishlistContext";
 import AppRouter from "./routes/AppRouter";
 import "./styles/globals.css";
 import WishlistModal from "./pages/Wishlist/WishlistModal";
-import PayPalProvider from "./providers/PaypalProvider";
- 
+import { PayPalScriptProvider } from "@paypal/react-paypal-js";
+
 const App: React.FC = () => (
-  <AuthProvider>
-    <CartProvider>
-      <WishlistProvider>
-        <PayPalProvider>
-          <AppRouter />
-          <WishlistModal/>
-        </PayPalProvider>
-      </WishlistProvider>
-    </CartProvider>
-  </AuthProvider>
+  <React.StrictMode>
+    <PayPalScriptProvider
+      options={{
+        clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
+        currency: "MXN",
+        locale: "es_MX",
+      }}
+    >
+      <AuthProvider>
+        <CartProvider>
+          <WishlistProvider>
+            <AppRouter />
+            <WishlistModal />
+          </WishlistProvider>
+        </CartProvider>
+      </AuthProvider>
+    </PayPalScriptProvider>
+  </React.StrictMode>
 );
- 
+
 export default App;
- 

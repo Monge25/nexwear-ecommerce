@@ -52,13 +52,22 @@ const Cart: React.FC = () => {
           </div>
 
           {items.map((item) => {
-            // ✅ Usa la imagen de la variante si existe, si no cae en la del producto
             const displayImage = item.variantImage ?? item.product.imageUrl;
+
+            // ✅ Calcular stock disponible para esta variante
+            const variant = item.product.variants?.find(
+              (v) =>
+                v.color === item.selectedColor.name &&
+                v.size === item.selectedSize,
+            );
+            const maxStock = variant?.stock ?? item.product.stock ?? Infinity;
+            const outOfStock = maxStock === 0;
+            const atLimit = item.quantity >= maxStock;
 
             return (
               <div
                 key={`${item.product.id}-${item.selectedSize}-${item.selectedColor.name}`}
-                className={styles.item}
+                className={`${styles.item} ${outOfStock ? styles.itemOutOfStock : ""}`}
               >
                 <div
                   className={styles.itemImg}
@@ -66,6 +75,10 @@ const Cart: React.FC = () => {
                 >
                   {displayImage && (
                     <img src={displayImage} alt={item.product.name} />
+                  )}
+                  {/* ✅ Overlay "Sin stock" sobre la imagen */}
+                  {outOfStock && (
+                    <div className={styles.outOfStockOverlay}>Sin stock</div>
                   )}
                 </div>
 
@@ -80,7 +93,6 @@ const Cart: React.FC = () => {
                   <p className={styles.itemMeta}>
                     Talla: <strong>{item.selectedSize}</strong>
                     {" · "}
-                    {/* ✅ Muestra swatch del color real elegido */}
                     <span
                       style={{
                         display: "inline-block",
@@ -100,33 +112,52 @@ const Cart: React.FC = () => {
                     {formatPrice(item.product.price)} por unidad
                   </p>
 
-                  <div className={styles.qty}>
-                    <button
-                      onClick={() =>
-                        updateQuantity(
-                          item.product.id,
-                          item.selectedSize,
-                          item.selectedColor.name,
-                          item.quantity - 1,
-                        )
-                      }
-                    >
-                      −
-                    </button>
-                    <span>{item.quantity}</span>
-                    <button
-                      onClick={() =>
-                        updateQuantity(
-                          item.product.id,
-                          item.selectedSize,
-                          item.selectedColor.name,
-                          item.quantity + 1,
-                        )
-                      }
-                    >
-                      +
-                    </button>
-                  </div>
+                  {/* ✅ Controles de cantidad con límite de stock */}
+                  {outOfStock ? (
+                    <p className={styles.stockWarning}>
+                      ⚠ Este producto ya no está disponible
+                    </p>
+                  ) : (
+                    <div className={styles.qty}>
+                      <button
+                        onClick={() =>
+                          updateQuantity(
+                            item.product.id,
+                            item.selectedSize,
+                            item.selectedColor.name,
+                            item.quantity - 1,
+                          )
+                        }
+                      >
+                        −
+                      </button>
+                      <span>{item.quantity}</span>
+                      <button
+                        // ✅ Deshabilitado si ya se alcanzó el stock máximo
+                        disabled={atLimit}
+                        title={
+                          atLimit ? `Máximo disponible: ${maxStock}` : undefined
+                        }
+                        onClick={() =>
+                          updateQuantity(
+                            item.product.id,
+                            item.selectedSize,
+                            item.selectedColor.name,
+                            item.quantity + 1,
+                          )
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ✅ Aviso de stock bajo (≤ 3 unidades) */}
+                  {!outOfStock && atLimit && (
+                    <p className={styles.stockWarning}>
+                      Solo quedan {maxStock} en stock
+                    </p>
+                  )}
 
                   <button
                     className={styles.remove}

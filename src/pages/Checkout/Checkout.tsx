@@ -20,7 +20,6 @@ const Checkout: React.FC = () => {
   const [step, setStep] = useState<Step>("shipping");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
   const [zipTimeout, setZipTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const { data: addresses = [] } = useFetch<Address[]>(
@@ -51,24 +50,16 @@ const Checkout: React.FC = () => {
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  // ─────────────────────────────────────
-  // Autocompletar Código Postal
-  // ─────────────────────────────────────
-
+  // ── Autocompletar Código Postal ───────────────────────────────────────────
   const handleZipCode = (zip: string) => {
     if (zipTimeout) clearTimeout(zipTimeout);
-
     const timeout = setTimeout(async () => {
       if (zip.length !== 5) return;
-
       try {
         const res = await fetch(`https://api.zippopotam.us/MX/${zip}`);
-
         if (!res.ok) return;
-
         const data = await res.json();
         const place = data.places?.[0];
-
         if (place) {
           setForm((f) => ({
             ...f,
@@ -77,22 +68,17 @@ const Checkout: React.FC = () => {
             country: "México",
           }));
         }
-      } catch (error) {
-        console.error("ZIP error", error);
+      } catch (err) {
+        console.error("ZIP error", err);
       }
     }, 500);
-
     setZipTimeout(timeout);
   };
 
-  // ─────────────────────────────────────
-  // Crear pedido
-  // ─────────────────────────────────────
-
+  // ── Crear pedido ──────────────────────────────────────────────────────────
   const handleOrder = async () => {
     setLoading(true);
     setError("");
-
     try {
       const data: CheckoutData = {
         newAddress: {
@@ -114,11 +100,8 @@ const Checkout: React.FC = () => {
               }
             : undefined,
       };
-
       const order = await orderService.createOrder(data);
-
       clearCart();
-
       navigate(`/perfil/pedidos?order=${order.id}`);
     } catch (err: unknown) {
       setError(
@@ -132,7 +115,6 @@ const Checkout: React.FC = () => {
   return (
     <div className={styles.page}>
       <div className={styles.inner}>
-        {/* Left */}
         <div className={styles.left}>
           <h1 className={styles.title}>Checkout</h1>
 
@@ -155,20 +137,14 @@ const Checkout: React.FC = () => {
             ))}
           </div>
 
-          {/* ───────────────────────────── */}
-          {/* SHIPPING */}
-          {/* ───────────────────────────── */}
-
+          {/* ── SHIPPING ─────────────────────────────────────────────────── */}
           {step === "shipping" && (
             <div className={styles.stepContent}>
               <h2 className={styles.stepTitle}>Dirección de envío</h2>
 
-              {/* Direcciones guardadas */}
-
               {Array.isArray(addresses) && addresses.length > 0 && (
                 <div className={styles.savedAddresses}>
                   <h3>Direcciones guardadas</h3>
-
                   {addresses.map((addr: Address) => (
                     <div
                       key={addr.id}
@@ -195,159 +171,357 @@ const Checkout: React.FC = () => {
               )}
 
               <div className={styles.grid2}>
-                <Input
-                  label="Nombre"
-                  value={form.firstName}
-                  onChange={set("firstName")}
-                />
-                <Input
-                  label="Apellido"
-                  value={form.lastName}
-                  onChange={set("lastName")}
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Nombre</label>
+                  <input
+                    className={styles.formInput}
+                    value={form.firstName}
+                    onChange={set("firstName")}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Apellido</label>
+                  <input
+                    className={styles.formInput}
+                    value={form.lastName}
+                    onChange={set("lastName")}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Email</label>
+                <input
+                  className={styles.formInput}
+                  value={form.email}
+                  onChange={set("email")}
                 />
               </div>
 
-              <Input label="Email" value={form.email} onChange={set("email")} />
-
-              <Input
-                label="Teléfono"
-                value={form.phone}
-                onChange={set("phone")}
-              />
-
-              <div className={styles.grid2}>
-                <Input
-                  label="Calle"
-                  value={form.street}
-                  onChange={set("street")}
-                />
-
-                <Input
-                  label="Colonia"
-                  value={form.city}
-                  onChange={set("city")}
-                />
-
-                <Input
-                  label="Ciudad"
-                  value={form.colony}
-                  onChange={set("colony")}
-                />
-
-                <Input
-                  label="Estado"
-                  value={form.state}
-                  onChange={set("state")}
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Teléfono</label>
+                <input
+                  className={styles.formInput}
+                  value={form.phone}
+                  onChange={set("phone")}
                 />
               </div>
 
               <div className={styles.grid2}>
-                <Input
-                  label="Código Postal"
-                  value={form.zipCode}
-                  onChange={(e) => {
-                    set("zipCode")(e);
-                    handleZipCode(e.target.value);
-                  }}
-                />
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Calle</label>
+                  <input
+                    className={styles.formInput}
+                    value={form.street}
+                    onChange={set("street")}
+                  />
+                </div>
 
-                <Input
-                  label="País"
-                  value={form.country}
-                  onChange={set("country")}
-                />
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Colonia</label>
+                  <input
+                    className={styles.formInput}
+                    value={form.colony}
+                    onChange={set("colony")}
+                  />
+                </div>
               </div>
 
-              <Button
-                variant="fill"
-                fullWidth
-                onClick={() => setStep("payment")}
-              >
-                Continuar al pago →
-              </Button>
+              <div className={styles.grid2}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Ciudad</label>
+                  <input
+                    className={styles.formInput}
+                    value={form.city}
+                    onChange={set("city")}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Estado</label>
+                  <input
+                    className={styles.formInput}
+                    value={form.state}
+                    onChange={set("state")}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.grid2}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Código Postal</label>
+                  <input
+                    className={styles.formInput}
+                    value={form.zipCode}
+                    onChange={(e) => {
+                      set("zipCode")(e);
+                      handleZipCode(e.target.value);
+                    }}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>País</label>
+                  <input
+                    className={styles.formInput}
+                    value={form.country}
+                    onChange={set("country")}
+                  />
+                </div>
+              </div>
+              <div className={styles.btnRow}>
+                <Button variant="ghost" onClick={() => navigate("/")}>
+                  ← Volver
+                </Button>
+                {form.method === "card" && (
+                  <Button variant="fill" onClick={() => setStep("payment")}>
+                    Continuar con el Pago →
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
-          {/* ───────────────────────────── */}
-          {/* PAYMENT */}
-          {/* ───────────────────────────── */}
-
+          {/* ── PAYMENT ──────────────────────────────────────────────────── */}
           {step === "payment" && (
             <div className={styles.stepContent}>
-              <h2>Método de pago</h2>
+              <h2 className={styles.stepTitle}>Método de pago</h2>
 
+              {/* Selector de método */}
+              <div className={styles.methodSelector}>
+                {/* Tarjeta */}
+                <label
+                  className={`${styles.methodOption} ${
+                    form.method === "card" ? styles.methodSelected : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="card"
+                    checked={form.method === "card"}
+                    onChange={() => setForm((f) => ({ ...f, method: "card" }))}
+                    className={styles.methodRadio}
+                  />
+                  <div className={styles.methodBody}>
+                    <div className={styles.methodHeader}>
+                      <span className={styles.methodLabel}>
+                        Tarjeta de crédito / débito
+                      </span>
+                      <div className={styles.cardBrands}>
+                        <img
+                          src="https://vectorified.com/image/visa-logo-vector-17.png"
+                          alt="Visa"
+                          style={{ height: 13 }}
+                        />
+                        <img
+                          src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg"
+                          alt="Mastercard"
+                          style={{ height: 20 }}
+                        />
+                        <img
+                          src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg"
+                          alt="Amex"
+                          style={{ height: 20 }}
+                        />
+                      </div>
+                    </div>
+                    <p className={styles.methodHint}>
+                      Pago seguro con encriptación SSL de 256 bits
+                    </p>
+                  </div>
+                </label>
+
+                {/* PayPal */}
+                <label
+                  className={`${styles.methodOption} ${
+                    form.method === "paypal" ? styles.methodSelected : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="paypal"
+                    checked={form.method === "paypal"}
+                    onChange={() =>
+                      setForm((f) => ({ ...f, method: "paypal" }))
+                    }
+                    className={styles.methodRadio}
+                  />
+                  <div className={styles.methodBody}>
+                    <div className={styles.methodHeader}>
+                      <span className={styles.methodLabel}>PayPal</span>
+                    </div>
+                    <p className={styles.methodHint}>
+                      Serás redirigido para completar el pago de forma segura
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Campos de tarjeta agrupados */}
               {form.method === "card" && (
-                <>
-                  <Input
-                    label="Número tarjeta"
-                    value={form.cardNumber}
-                    onChange={set("cardNumber")}
-                  />
-
-                  <Input
-                    label="Titular"
-                    value={form.cardHolder}
-                    onChange={set("cardHolder")}
-                  />
-
-                  <div className={styles.grid2}>
-                    <Input
-                      label="Expiración"
-                      value={form.cardExpiry}
-                      onChange={set("cardExpiry")}
-                    />
-
-                    <Input
-                      label="CVV"
-                      value={form.cardCVV}
-                      onChange={set("cardCVV")}
+                <div className={styles.cardFields}>
+                  {/* Número */}
+                  <div className={styles.cardField}>
+                    <label htmlFor="cardNumber">Número de tarjeta</label>
+                    <input
+                      id="cardNumber"
+                      type="text"
+                      placeholder="1234  5678  9012  3456"
+                      maxLength={19}
+                      value={form.cardNumber}
+                      onChange={set("cardNumber")}
                     />
                   </div>
-                </>
+
+                  {/* Titular */}
+                  <div className={styles.cardField}>
+                    <label htmlFor="cardHolder">Titular de la tarjeta</label>
+                    <input
+                      id="cardHolder"
+                      type="text"
+                      placeholder="Como aparece en la tarjeta"
+                      value={form.cardHolder}
+                      onChange={set("cardHolder")}
+                    />
+                  </div>
+
+                  {/* Vencimiento + CVV */}
+                  <div className={styles.cardFieldRow}>
+                    <div className={styles.cardField}>
+                      <label htmlFor="cardExpiry">Fecha de expiración</label>
+                      <input
+                        id="cardExpiry"
+                        type="text"
+                        placeholder="MM / AA"
+                        maxLength={7}
+                        value={form.cardExpiry}
+                        onChange={set("cardExpiry")}
+                      />
+                    </div>
+                    <div className={styles.cardField}>
+                      <label htmlFor="cardCVV">CVV</label>
+                      <input
+                        id="cardCVV"
+                        type="text"
+                        placeholder="•••"
+                        maxLength={4}
+                        value={form.cardCVV}
+                        onChange={set("cardCVV")}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Nota seguridad */}
+                  <div className={styles.secureNote}>
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#c9a96e"
+                      strokeWidth="2"
+                    >
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    <p>
+                      Tu información de pago está protegida. Nunca almacenamos
+                      los datos de tu tarjeta.
+                    </p>
+                  </div>
+                </div>
               )}
 
+              {/* PayPal */}
               {form.method === "paypal" && (
-                <PaypalButton
-                  onSuccess={(orderId) => {
-                    clearCart();
-                    navigate(`/perfil/pedidos?order=${orderId}`);
-                  }}
-                />
+                <div className={styles.paypalWrap}>
+                  <PaypalButton
+                    onSuccess={(orderId) => {
+                      clearCart();
+                      navigate(`/perfil/pedidos?order=${orderId}`);
+                    }}
+                  />
+                </div>
               )}
 
               <div className={styles.btnRow}>
                 <Button variant="ghost" onClick={() => setStep("shipping")}>
                   ← Volver
                 </Button>
-
-                <Button variant="fill" onClick={() => setStep("review")}>
-                  Revisar →
-                </Button>
+                {form.method === "card" && (
+                  <Button variant="fill" onClick={() => setStep("review")}>
+                    Revisar →
+                  </Button>
+                )}
               </div>
             </div>
           )}
 
-          {/* ───────────────────────────── */}
-          {/* REVIEW */}
-          {/* ───────────────────────────── */}
-
+          {/* ── REVIEW ───────────────────────────────────────────────────── */}
           {step === "review" && (
             <div className={styles.stepContent}>
-              <h2>Revisar pedido</h2>
+              <h2 className={styles.stepTitle}>Revisar pedido</h2>
 
               {error && <p className={styles.error}>{error}</p>}
 
-              <Button variant="gold" loading={loading} onClick={handleOrder}>
-                Confirmar Pedido
-              </Button>
+              {/* Dirección */}
+              <div className={styles.reviewBlock}>
+                <p className={styles.reviewLabel}>Dirección de envío</p>
+                <p>
+                  {form.firstName} {form.lastName}
+                  <br />
+                  {form.street}
+                  <br />
+                  {form.colony}, {form.city}
+                  <br />
+                  {form.state}, {form.zipCode}
+                  <br />
+                  {form.country}
+                </p>
+              </div>
+
+              {/* Pago */}
+              <div className={styles.reviewBlock}>
+                <p className={styles.reviewLabel}>Método de pago</p>
+                {form.method === "card" ? (
+                  <p>
+                    Tarjeta terminación **** {form.cardNumber.slice(-4)}
+                    <br />
+                    {form.cardHolder}
+                  </p>
+                ) : (
+                  <p>PayPal</p>
+                )}
+              </div>
+
+              {/* Envío */}
+              <div className={styles.reviewBlock}>
+                <p className={styles.reviewLabel}>Envío</p>
+                <p>
+                  Envío estándar
+                  <br />
+                  Entrega estimada: 3 - 5 días hábiles
+                </p>
+              </div>
+
+              <div className={styles.btnRow}>
+                <Button variant="ghost" onClick={() => setStep("payment")}>
+                  ← Volver
+                </Button>
+                {form.method === "card" && (
+                  <Button variant="fill" onClick={() => setStep("review")}>
+                    Confirmar Pedido →
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* ───────────────────────────── */}
-        {/* SUMMARY */}
-        {/* ───────────────────────────── */}
-
+        {/* ── SUMMARY ──────────────────────────────────────────────────────── */}
         <aside className={styles.summary}>
           <h2 className={styles.sumTitle}>Tu pedido</h2>
 
@@ -356,7 +530,6 @@ const Checkout: React.FC = () => {
               key={`${item.product.id}-${item.selectedSize}`}
               className={styles.sumItem}
             >
-              {/* Imagen */}
               <div
                 className={styles.sumImg}
                 style={{ background: item.selectedColor?.hex }}
@@ -364,11 +537,9 @@ const Checkout: React.FC = () => {
                 {item.product.imageUrl && (
                   <img src={item.product.imageUrl} alt={item.product.name} />
                 )}
-
                 <span className={styles.sumQty}>{item.quantity}</span>
               </div>
 
-              {/* Info */}
               <div className={styles.sumItemInfo}>
                 <p className={styles.sumName}>{item.product.name}</p>
 
@@ -379,14 +550,11 @@ const Checkout: React.FC = () => {
                 </p>
               </div>
 
-              {/* Precio */}
               <span className={styles.sumPrice}>
                 {formatPrice(item.product.price * item.quantity)}
               </span>
             </div>
           ))}
-
-          {/* Totales */}
 
           <div className={styles.sumTotals}>
             <div className={styles.sumRow}>
