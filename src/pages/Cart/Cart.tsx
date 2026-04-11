@@ -9,6 +9,9 @@ const Cart: React.FC = () => {
   const navigate = useNavigate();
   const {
     items,
+    availableItems,
+    outOfStockItems,
+    hasOutOfStock,
     subtotal,
     shipping,
     total,
@@ -16,6 +19,7 @@ const Cart: React.FC = () => {
     updateQuantity,
     removeItem,
     clearCart,
+    removeOutOfStockItems,
   } = useCart();
 
   if (items.length === 0) {
@@ -40,10 +44,132 @@ const Cart: React.FC = () => {
     );
   }
 
+  // ── Helper para renderizar un item ────────────────────────────────
+  const renderItem = (item: (typeof items)[0], isUnavailable = false) => {
+    const displayImage = item.variantImage ?? item.product.imageUrl;
+    const variant = item.product.variants?.find(
+      (v) =>
+        v.color === item.selectedColor.name && v.size === item.selectedSize,
+    );
+    const maxStock = variant?.stock ?? item.product.stock ?? Infinity;
+    const atLimit = !isUnavailable && item.quantity >= maxStock;
+
+    return (
+      <div
+        key={`${item.product.id}-${item.selectedSize}-${item.selectedColor.name}`}
+        className={`${styles.item} ${isUnavailable ? styles.itemUnavailable : ""}`}
+      >
+        {/* Imagen */}
+        <div
+          className={styles.itemImg}
+          style={{ background: item.selectedColor.hex + "22" }}
+        >
+          {displayImage && <img src={displayImage} alt={item.product.name} />}
+          {isUnavailable && (
+            <div className={styles.outOfStockOverlay}>Agotado</div>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className={styles.itemInfo}>
+          <Link
+            to={`/productos/${item.product.slug}`}
+            className={styles.itemName}
+          >
+            {item.product.name}
+          </Link>
+
+          <p className={styles.itemMeta}>
+            Talla: <strong>{item.selectedSize}</strong>
+            {" · "}
+            <span
+              style={{
+                display: "inline-block",
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: item.selectedColor.hex,
+                border: "1px solid rgba(0,0,0,0.15)",
+                marginRight: 4,
+                verticalAlign: "middle",
+              }}
+            />
+            <strong>{item.selectedColor.name}</strong>
+          </p>
+
+          <p className={styles.itemMeta}>
+            {formatPrice(item.product.price)} por unidad
+          </p>
+
+          {/* Controles de cantidad — solo si está disponible */}
+          {!isUnavailable && (
+            <>
+              <div className={styles.qty}>
+                <button
+                  onClick={() =>
+                    updateQuantity(
+                      item.product.id,
+                      item.selectedSize,
+                      item.selectedColor.name,
+                      item.quantity - 1,
+                    )
+                  }
+                >
+                  −
+                </button>
+                <span>{item.quantity}</span>
+                <button
+                  disabled={atLimit}
+                  title={atLimit ? `Máximo disponible: ${maxStock}` : undefined}
+                  onClick={() =>
+                    updateQuantity(
+                      item.product.id,
+                      item.selectedSize,
+                      item.selectedColor.name,
+                      item.quantity + 1,
+                    )
+                  }
+                >
+                  +
+                </button>
+              </div>
+              {atLimit && (
+                <p className={styles.stockWarning}>
+                  Solo quedan {maxStock} en stock
+                </p>
+              )}
+            </>
+          )}
+
+          <button
+            className={styles.remove}
+            onClick={() =>
+              removeItem(
+                item.product.id,
+                item.selectedSize,
+                item.selectedColor.name,
+              )
+            }
+          >
+            Eliminar
+          </button>
+        </div>
+
+        {/* Precio */}
+        <span
+          className={`${styles.itemTotal} ${isUnavailable ? styles.itemTotalMuted : ""}`}
+        >
+          {formatPrice(item.product.price * item.quantity)}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.inner}>
         <div className={styles.left}>
+          {/* ── Header ── */}
           <div className={styles.header}>
             <h1 className={styles.title}>Tu Bolsa</h1>
             <button className={styles.clearAll} onClick={clearCart}>
@@ -51,141 +177,80 @@ const Cart: React.FC = () => {
             </button>
           </div>
 
-          {items.map((item) => {
-            const displayImage = item.variantImage ?? item.product.imageUrl;
+          {/* ── Items disponibles ── */}
+          {availableItems.map((item) => renderItem(item, false))}
 
-            // ✅ Calcular stock disponible para esta variante
-            const variant = item.product.variants?.find(
-              (v) =>
-                v.color === item.selectedColor.name &&
-                v.size === item.selectedSize,
-            );
-            const maxStock = variant?.stock ?? item.product.stock ?? Infinity;
-            const outOfStock = maxStock === 0;
-            const atLimit = item.quantity >= maxStock;
-
-            return (
-              <div
-                key={`${item.product.id}-${item.selectedSize}-${item.selectedColor.name}`}
-                className={`${styles.item} ${outOfStock ? styles.itemOutOfStock : ""}`}
-              >
-                <div
-                  className={styles.itemImg}
-                  style={{ background: item.selectedColor.hex + "22" }}
+          {/* ── Sección de agotados ── */}
+          {hasOutOfStock && (
+            <div className={styles.outOfStockSection}>
+              <div className={styles.outOfStockHeader}>
+                <div className={styles.outOfStockTitleRow}>
+                  {/* Ícono de advertencia */}
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <span className={styles.outOfStockTitle}>
+                    Productos no disponibles ({outOfStockItems.length})
+                  </span>
+                </div>
+                <button
+                  className={styles.removeAllBtn}
+                  onClick={removeOutOfStockItems}
                 >
-                  {displayImage && (
-                    <img src={displayImage} alt={item.product.name} />
-                  )}
-                  {/* ✅ Overlay "Sin stock" sobre la imagen */}
-                  {outOfStock && (
-                    <div className={styles.outOfStockOverlay}>Sin stock</div>
-                  )}
-                </div>
-
-                <div className={styles.itemInfo}>
-                  <Link
-                    to={`/productos/${item.product.slug}`}
-                    className={styles.itemName}
-                  >
-                    {item.product.name}
-                  </Link>
-
-                  <p className={styles.itemMeta}>
-                    Talla: <strong>{item.selectedSize}</strong>
-                    {" · "}
-                    <span
-                      style={{
-                        display: "inline-block",
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        background: item.selectedColor.hex,
-                        border: "1px solid rgba(0,0,0,0.15)",
-                        marginRight: 4,
-                        verticalAlign: "middle",
-                      }}
-                    />
-                    <strong>{item.selectedColor.name}</strong>
-                  </p>
-
-                  <p className={styles.itemMeta}>
-                    {formatPrice(item.product.price)} por unidad
-                  </p>
-
-                  {/* ✅ Controles de cantidad con límite de stock */}
-                  {outOfStock ? (
-                    <p className={styles.stockWarning}>
-                      ⚠ Este producto ya no está disponible
-                    </p>
-                  ) : (
-                    <div className={styles.qty}>
-                      <button
-                        onClick={() =>
-                          updateQuantity(
-                            item.product.id,
-                            item.selectedSize,
-                            item.selectedColor.name,
-                            item.quantity - 1,
-                          )
-                        }
-                      >
-                        −
-                      </button>
-                      <span>{item.quantity}</span>
-                      <button
-                        // ✅ Deshabilitado si ya se alcanzó el stock máximo
-                        disabled={atLimit}
-                        title={
-                          atLimit ? `Máximo disponible: ${maxStock}` : undefined
-                        }
-                        onClick={() =>
-                          updateQuantity(
-                            item.product.id,
-                            item.selectedSize,
-                            item.selectedColor.name,
-                            item.quantity + 1,
-                          )
-                        }
-                      >
-                        +
-                      </button>
-                    </div>
-                  )}
-
-                  {/* ✅ Aviso de stock bajo (≤ 3 unidades) */}
-                  {!outOfStock && atLimit && (
-                    <p className={styles.stockWarning}>
-                      Solo quedan {maxStock} en stock
-                    </p>
-                  )}
-
-                  <button
-                    className={styles.remove}
-                    onClick={() =>
-                      removeItem(
-                        item.product.id,
-                        item.selectedSize,
-                        item.selectedColor.name,
-                      )
-                    }
-                  >
-                    Eliminar
-                  </button>
-                </div>
-
-                <span className={styles.itemTotal}>
-                  {formatPrice(item.product.price * item.quantity)}
-                </span>
+                  Eliminar todos
+                </button>
               </div>
-            );
-          })}
+
+              <p className={styles.outOfStockDesc}>
+                Estos productos se agotaron y no se incluirán en tu compra.
+                Puedes eliminarlos o guardarlos para cuando vuelvan a estar
+                disponibles.
+              </p>
+
+              <div className={styles.outOfStockItems}>
+                {outOfStockItems.map((item) => renderItem(item, true))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Summary */}
+        {/* ── Summary ── */}
         <aside className={styles.summary}>
           <h2 className={styles.sumTitle}>Resumen del Pedido</h2>
 
-          {freeShippingRemaining > 0 && (
+          {/* Aviso si hay agotados */}
+          {hasOutOfStock && (
+            <div className={styles.summaryWarning}>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <p>
+                {availableItems.length === 0
+                  ? "Todos los productos están agotados."
+                  : `${outOfStockItems.length} producto${outOfStockItems.length > 1 ? "s" : ""} agotado${outOfStockItems.length > 1 ? "s" : ""} no se incluirá${outOfStockItems.length > 1 ? "n" : ""} en la compra.`}
+              </p>
+            </div>
+          )}
+
+          {freeShippingRemaining > 0 && availableItems.length > 0 && (
             <div className={styles.upsell}>
               <p>
                 Añade <strong>{formatPrice(freeShippingRemaining)}</strong> para{" "}
@@ -209,14 +274,19 @@ const Cart: React.FC = () => {
             </div>
           </div>
 
+          {/* Botón de checkout — deshabilitado si todos están agotados */}
           <Button
             variant="fill"
             size="lg"
             fullWidth
+            disabled={availableItems.length === 0}
             onClick={() => navigate("/checkout")}
           >
-            Finalizar Compra →
+            {availableItems.length === 0
+              ? "Sin productos disponibles"
+              : "Finalizar Compra →"}
           </Button>
+
           <Link to="/productos" className={styles.contShopping}>
             ← Continuar comprando
           </Link>

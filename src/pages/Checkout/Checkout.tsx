@@ -4,7 +4,6 @@ import { useCart } from "@/hooks/useCart";
 import { useFetch } from "@/hooks/useFetch";
 import { formatPrice } from "@/utils/formatPrice";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
 import orderService from "@/services/orderService";
 import addressService, { Address } from "@/services/addressService";
 import type { CheckoutData } from "@/types";
@@ -15,7 +14,7 @@ type Step = "shipping" | "payment" | "review";
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items, subtotal, shipping, total, clearCart } = useCart();
+  const { availableItems, subtotal, shipping, total, clearCart } = useCart();
 
   const [step, setStep] = useState<Step>("shipping");
   const [loading, setLoading] = useState(false);
@@ -38,10 +37,6 @@ const Checkout: React.FC = () => {
     state: "",
     zipCode: "",
     country: "México",
-    cardNumber: "",
-    cardHolder: "",
-    cardExpiry: "",
-    cardCVV: "",
     method: "card" as "card" | "paypal",
   });
 
@@ -50,7 +45,6 @@ const Checkout: React.FC = () => {
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  // ── Autocompletar Código Postal ───────────────────────────────────────────
   const handleZipCode = (zip: string) => {
     if (zipTimeout) clearTimeout(zipTimeout);
     const timeout = setTimeout(async () => {
@@ -75,7 +69,6 @@ const Checkout: React.FC = () => {
     setZipTimeout(timeout);
   };
 
-  // ── Crear pedido ──────────────────────────────────────────────────────────
   const handleOrder = async () => {
     setLoading(true);
     setError("");
@@ -90,15 +83,6 @@ const Checkout: React.FC = () => {
           country: form.country,
         },
         paymentMethod: form.method,
-        cardData:
-          form.method === "card"
-            ? {
-                number: form.cardNumber,
-                holder: form.cardHolder,
-                expiry: form.cardExpiry,
-                cvv: form.cardCVV,
-              }
-            : undefined,
       };
       const order = await orderService.createOrder(data);
       clearCart();
@@ -110,6 +94,16 @@ const Checkout: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── Callback compartido para ambos métodos ────────────────────────
+  const handlePaypalSuccess = (orderId: string) => {
+    clearCart();
+    navigate(`/perfil/pedidos?order=${orderId}`);
+  };
+
+  const handlePaypalError = () => {
+    setError("Hubo un error con el pago. Intenta de nuevo.");
   };
 
   return (
@@ -179,7 +173,6 @@ const Checkout: React.FC = () => {
                     onChange={set("firstName")}
                   />
                 </div>
-
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Apellido</label>
                   <input
@@ -217,7 +210,6 @@ const Checkout: React.FC = () => {
                     onChange={set("street")}
                   />
                 </div>
-
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Colonia</label>
                   <input
@@ -237,7 +229,6 @@ const Checkout: React.FC = () => {
                     onChange={set("city")}
                   />
                 </div>
-
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Estado</label>
                   <input
@@ -260,7 +251,6 @@ const Checkout: React.FC = () => {
                     }}
                   />
                 </div>
-
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>País</label>
                   <input
@@ -270,15 +260,14 @@ const Checkout: React.FC = () => {
                   />
                 </div>
               </div>
+
               <div className={styles.btnRow}>
                 <Button variant="ghost" onClick={() => navigate("/")}>
                   ← Volver
                 </Button>
-                {form.method === "card" && (
-                  <Button variant="fill" onClick={() => setStep("payment")}>
-                    Continuar con el Pago →
-                  </Button>
-                )}
+                <Button variant="fill" onClick={() => setStep("payment")}>
+                  Continuar con el Pago →
+                </Button>
               </div>
             </div>
           )}
@@ -288,13 +277,10 @@ const Checkout: React.FC = () => {
             <div className={styles.stepContent}>
               <h2 className={styles.stepTitle}>Método de pago</h2>
 
-              {/* Selector de método */}
               <div className={styles.methodSelector}>
                 {/* Tarjeta */}
                 <label
-                  className={`${styles.methodOption} ${
-                    form.method === "card" ? styles.methodSelected : ""
-                  }`}
+                  className={`${styles.methodOption} ${form.method === "card" ? styles.methodSelected : ""}`}
                 >
                   <input
                     type="radio"
@@ -335,9 +321,7 @@ const Checkout: React.FC = () => {
 
                 {/* PayPal */}
                 <label
-                  className={`${styles.methodOption} ${
-                    form.method === "paypal" ? styles.methodSelected : ""
-                  }`}
+                  className={`${styles.methodOption} ${form.method === "paypal" ? styles.methodSelected : ""}`}
                 >
                   <input
                     type="radio"
@@ -360,102 +344,35 @@ const Checkout: React.FC = () => {
                 </label>
               </div>
 
-              {/* Campos de tarjeta agrupados */}
+              {/* Tarjeta — widget de PayPal solo con opción de tarjeta */}
               {form.method === "card" && (
-                <div className={styles.cardFields}>
-                  {/* Número */}
-                  <div className={styles.cardField}>
-                    <label htmlFor="cardNumber">Número de tarjeta</label>
-                    <input
-                      id="cardNumber"
-                      type="text"
-                      placeholder="1234  5678  9012  3456"
-                      maxLength={19}
-                      value={form.cardNumber}
-                      onChange={set("cardNumber")}
-                    />
-                  </div>
-
-                  {/* Titular */}
-                  <div className={styles.cardField}>
-                    <label htmlFor="cardHolder">Titular de la tarjeta</label>
-                    <input
-                      id="cardHolder"
-                      type="text"
-                      placeholder="Como aparece en la tarjeta"
-                      value={form.cardHolder}
-                      onChange={set("cardHolder")}
-                    />
-                  </div>
-
-                  {/* Vencimiento + CVV */}
-                  <div className={styles.cardFieldRow}>
-                    <div className={styles.cardField}>
-                      <label htmlFor="cardExpiry">Fecha de expiración</label>
-                      <input
-                        id="cardExpiry"
-                        type="text"
-                        placeholder="MM / AA"
-                        maxLength={7}
-                        value={form.cardExpiry}
-                        onChange={set("cardExpiry")}
-                      />
-                    </div>
-                    <div className={styles.cardField}>
-                      <label htmlFor="cardCVV">CVV</label>
-                      <input
-                        id="cardCVV"
-                        type="text"
-                        placeholder="•••"
-                        maxLength={4}
-                        value={form.cardCVV}
-                        onChange={set("cardCVV")}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Nota seguridad */}
-                  <div className={styles.secureNote}>
-                    <svg
-                      width="13"
-                      height="13"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#c9a96e"
-                      strokeWidth="2"
-                    >
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    <p>
-                      Tu información de pago está protegida. Nunca almacenamos
-                      los datos de tu tarjeta.
-                    </p>
-                  </div>
+                <div className={styles.paypalWrap}>
+                  <PaypalButton
+                    fundingSource="card"
+                    onSuccess={handlePaypalSuccess}
+                    onError={handlePaypalError}
+                  />
                 </div>
               )}
 
-              {/* PayPal */}
+              {/* PayPal — widget de PayPal normal */}
               {form.method === "paypal" && (
                 <div className={styles.paypalWrap}>
                   <PaypalButton
-                    onSuccess={(orderId) => {
-                      clearCart();
-                      navigate(`/perfil/pedidos?order=${orderId}`);
-                    }}
+                    fundingSource="paypal"
+                    onSuccess={handlePaypalSuccess}
+                    onError={handlePaypalError}
                   />
                 </div>
               )}
 
               <div className={styles.btnRow}>
-                <Button variant="ghost" onClick={() => setStep("shipping")}>
+                <Button variant="ghost" onClick={() => navigate("shipping")}>
                   ← Volver
                 </Button>
-                {form.method === "card" && (
-                  <Button variant="fill" onClick={() => setStep("review")}>
-                    Revisar →
-                  </Button>
-                )}
+                <Button variant="fill" onClick={() => setStep("review")}>
+                  Continuar con el pedido →
+                </Button>
               </div>
             </div>
           )}
@@ -467,7 +384,6 @@ const Checkout: React.FC = () => {
 
               {error && <p className={styles.error}>{error}</p>}
 
-              {/* Dirección */}
               <div className={styles.reviewBlock}>
                 <p className={styles.reviewLabel}>Dirección de envío</p>
                 <p>
@@ -483,21 +399,15 @@ const Checkout: React.FC = () => {
                 </p>
               </div>
 
-              {/* Pago */}
               <div className={styles.reviewBlock}>
                 <p className={styles.reviewLabel}>Método de pago</p>
-                {form.method === "card" ? (
-                  <p>
-                    Tarjeta terminación **** {form.cardNumber.slice(-4)}
-                    <br />
-                    {form.cardHolder}
-                  </p>
-                ) : (
-                  <p>PayPal</p>
-                )}
+                <p>
+                  {form.method === "card"
+                    ? "Tarjeta de crédito / débito"
+                    : "PayPal"}
+                </p>
               </div>
 
-              {/* Envío */}
               <div className={styles.reviewBlock}>
                 <p className={styles.reviewLabel}>Envío</p>
                 <p>
@@ -511,11 +421,9 @@ const Checkout: React.FC = () => {
                 <Button variant="ghost" onClick={() => setStep("payment")}>
                   ← Volver
                 </Button>
-                {form.method === "card" && (
-                  <Button variant="fill" onClick={() => setStep("review")}>
-                    Confirmar Pedido →
-                  </Button>
-                )}
+                <Button variant="fill" loading={loading} onClick={handleOrder}>
+                  Confirmar Pedido
+                </Button>
               </div>
             </div>
           )}
@@ -525,9 +433,9 @@ const Checkout: React.FC = () => {
         <aside className={styles.summary}>
           <h2 className={styles.sumTitle}>Tu pedido</h2>
 
-          {items.map((item) => (
+          {availableItems.map((item) => (
             <div
-              key={`${item.product.id}-${item.selectedSize}`}
+              key={`${item.product.id}-${item.selectedSize}-${item.selectedColor.name}`}
               className={styles.sumItem}
             >
               <div
@@ -539,17 +447,13 @@ const Checkout: React.FC = () => {
                 )}
                 <span className={styles.sumQty}>{item.quantity}</span>
               </div>
-
               <div className={styles.sumItemInfo}>
                 <p className={styles.sumName}>{item.product.name}</p>
-
                 <p className={styles.sumMeta}>Talla: {item.selectedSize}</p>
-
                 <p className={styles.sumMeta}>
                   Color: {item.selectedColor?.name}
                 </p>
               </div>
-
               <span className={styles.sumPrice}>
                 {formatPrice(item.product.price * item.quantity)}
               </span>
@@ -561,12 +465,10 @@ const Checkout: React.FC = () => {
               <span>Subtotal</span>
               <span>{formatPrice(subtotal)}</span>
             </div>
-
             <div className={styles.sumRow}>
               <span>Envío</span>
               <span>{shipping === 0 ? "Gratis" : formatPrice(shipping)}</span>
             </div>
-
             <div className={`${styles.sumRow} ${styles.sumTotal}`}>
               <span>Total</span>
               <span>{formatPrice(total)}</span>

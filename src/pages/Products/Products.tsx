@@ -129,7 +129,7 @@ const Products: React.FC = () => {
   const activeSort = (searchParams.get("sort") ??
     "relevance") as ProductFilters["sortBy"];
   const activeSearch = searchParams.get("search") ?? "";
-  // ✅ Corregido: usar siempre "isOnSale" como clave de URL
+  // Corregido: usar siempre "isOnSale" como clave de URL
   const isOnSale = searchParams.get("isOnSale") === "true";
   const activeSizes = searchParams.getAll("size") as ProductFilters["sizes"];
   const maxPrice = Number(searchParams.get("maxPrice") ?? MAX_PRICE);
@@ -156,7 +156,7 @@ const Products: React.FC = () => {
         ...(activeSizes?.length && { sizes: activeSizes }),
         ...(maxPrice < MAX_PRICE && { maxPrice }),
         page,
-        limit: PAGE_LIMIT, // ✅ 20 productos por página
+        limit: PAGE_LIMIT, // 20 productos por página
       };
       const res = await productService.getProducts(filters);
       setProducts(res.data);
@@ -320,7 +320,7 @@ const Products: React.FC = () => {
               <input
                 type="checkbox"
                 checked={isOnSale}
-                // ✅ Corregido: clave "isOnSale" consistente en toda la app
+                // Corregido: clave "isOnSale" consistente en toda la app
                 onChange={() => setParam("isOnSale", isOnSale ? null : "true")}
               />
               Solo en rebaja
@@ -356,7 +356,7 @@ const Products: React.FC = () => {
             {isOnSale && (
               <span className={styles.queryTag}>
                 Rebaja
-                {/* ✅ Corregido: clave "isOnSale" */}
+                {/* Corregido: clave "isOnSale" */}
                 <button onClick={() => setParam("isOnSale", null)}>✕</button>
               </span>
             )}

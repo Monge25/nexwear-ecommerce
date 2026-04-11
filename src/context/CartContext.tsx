@@ -4,11 +4,20 @@ import React, {
   useReducer,
   useCallback,
   useEffect,
+  useMemo,
 } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 import type { CartItem, Product, Size, ProductColor } from "@/types";
 import { FREE_SHIPPING_THRESHOLD } from "@/utils/constants";
+
+// ── Helper: obtener stock de un item ─────────────────────────────────
+function getItemStock(item: CartItem): number {
+  const variant = item.product.variants?.find(
+    (v) => v.color === item.selectedColor.name && v.size === item.selectedSize,
+  );
+  return variant?.stock ?? item.product.stock ?? Infinity;
+}
 
 // ── State ─────────────────────────────────────────────────────────────
 interface CartState {
@@ -16,10 +25,7 @@ interface CartState {
   isOpen: boolean;
 }
 
-const initialState: CartState = {
-  items: [],
-  isOpen: false,
-};
+const initialState: CartState = { items: [], isOpen: false };
 
 // ── Actions ───────────────────────────────────────────────────────────
 type CartAction =
@@ -51,18 +57,9 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     case "ADD_ITEM": {
       const newKey = key(action.payload);
       const existing = state.items.find((i) => key(i) === newKey);
-
-      // Buscar la variante que coincide con color + talla para leer su stock
-      const variant = action.payload.product.variants?.find(
-        (v) =>
-          v.color === action.payload.selectedColor.name &&
-          v.size === action.payload.selectedSize,
-      );
-      const maxStock =
-        variant?.stock ?? action.payload.product.stock ?? Infinity;
+      const maxStock = getItemStock(action.payload);
 
       if (existing) {
-        // No superar el stock al sumar cantidad
         const newQty = Math.min(
           existing.quantity + action.payload.quantity,
           maxStock,
@@ -81,10 +78,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         };
       }
 
-      // Clampear cantidad inicial al stock disponible
       const clampedQty = Math.min(action.payload.quantity, maxStock);
-
-      // Si no hay stock, no agregar el item
       if (clampedQty <= 0) return state;
 
       return {
@@ -133,11 +127,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
             i.selectedSize === size &&
             i.selectedColor.name === colorName
           ) {
-            // ✅ Buscar variante y respetar su stock máximo
-            const variant = i.product.variants?.find(
-              (v) => v.color === colorName && v.size === size,
-            );
-            const maxStock = variant?.stock ?? i.product.stock ?? Infinity;
+            const maxStock = getItemStock(i);
             return { ...i, quantity: Math.min(quantity, maxStock) };
           }
           return i;
@@ -147,16 +137,12 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
     case "SET_CART":
       return action.payload;
-
     case "CLEAR":
       return { ...state, items: [] };
-
     case "OPEN":
       return { ...state, isOpen: true };
-
     case "CLOSE":
       return { ...state, isOpen: false };
-
     default:
       return state;
   }
@@ -164,6 +150,11 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
 // ── Context ───────────────────────────────────────────────────────────
 interface CartContextValue extends CartState {
+  // Items separados por disponibilidad
+  availableItems: CartItem[];
+  outOfStockItems: CartItem[];
+  hasOutOfStock: boolean;
+
   itemCount: number;
   subtotal: number;
   shipping: number;
@@ -177,7 +168,6 @@ interface CartContextValue extends CartState {
     color: ProductColor,
     variantImage?: string,
   ) => void;
-
   removeItem: (productId: string, size: Size, colorName: string) => void;
   updateQuantity: (
     productId: string,
@@ -188,6 +178,9 @@ interface CartContextValue extends CartState {
   clearCart: () => void;
   openCart: () => void;
   closeCart: () => void;
+
+  // Elimina todos los productos agotados de una vez
+  removeOutOfStockItems: () => void;
 }
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -201,7 +194,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [state, dispatch] = useReducer(cartReducer, initialState);
 
-  // Cargar carrito al iniciar sesión
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
     dispatch({
@@ -210,19 +202,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, [storageKey]);
 
-  // Guardar carrito
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(state));
   }, [state, storageKey]);
 
-  // Limpiar al cerrar sesión
   useEffect(() => {
     if (!isAuthenticated) dispatch({ type: "CLEAR" });
   }, [isAuthenticated]);
 
-  // Totales
-  const itemCount = state.items.reduce((s, i) => s + i.quantity, 0);
-  const subtotal = state.items.reduce(
+  // Separar items disponibles de agotados
+  const availableItems = useMemo(
+    () => state.items.filter((i) => getItemStock(i) > 0),
+    [state.items],
+  );
+
+  const outOfStockItems = useMemo(
+    () => state.items.filter((i) => getItemStock(i) === 0),
+    [state.items],
+  );
+
+  const hasOutOfStock = outOfStockItems.length > 0;
+
+  // Totales calculados SOLO con items disponibles
+  const itemCount = availableItems.reduce((s, i) => s + i.quantity, 0);
+  const subtotal = availableItems.reduce(
     (s, i) => s + i.product.price * i.quantity,
     0,
   );
@@ -271,6 +274,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
+  // Elimina todos los agotados de una vez
+  const removeOutOfStockItems = useCallback(() => {
+    outOfStockItems.forEach((item) => {
+      dispatch({
+        type: "REMOVE_ITEM",
+        payload: {
+          productId: item.product.id,
+          size: item.selectedSize,
+          colorName: item.selectedColor.name,
+        },
+      });
+    });
+  }, [outOfStockItems]);
+
   const clearCart = useCallback(() => dispatch({ type: "CLEAR" }), []);
   const openCart = useCallback(() => dispatch({ type: "OPEN" }), []);
   const closeCart = useCallback(() => dispatch({ type: "CLOSE" }), []);
@@ -279,6 +296,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     <CartContext.Provider
       value={{
         ...state,
+        availableItems,
+        outOfStockItems,
+        hasOutOfStock,
         itemCount,
         subtotal,
         shipping,
@@ -290,6 +310,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         clearCart,
         openCart,
         closeCart,
+        removeOutOfStockItems,
       }}
     >
       {children}
@@ -297,7 +318,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-// ── Hook ─────────────────────────────────────────────────────────────
 export const useCartContext = (): CartContextValue => {
   const ctx = useContext(CartContext);
   if (!ctx) throw new Error("useCartContext must be used within CartProvider");

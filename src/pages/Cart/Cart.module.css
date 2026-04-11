@@ -297,11 +297,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: inherit; /* hereda del contenedor */
+  border-radius: inherit;
+  /* hereda del contenedor */
 }
 
 .itemImg {
-  position: relative; 
+  position: relative;
 }
 
 .stockWarning {
@@ -313,4 +314,97 @@
 .qty button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* ── Sección de agotados ─────────────────────────────────────────────── */
+.outOfStockSection {
+  margin-top: 32px;
+  border-top: 1px dashed #e0dbd3;
+  padding-top: 24px;
+}
+
+.outOfStockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.outOfStockTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #b05a2f;
+}
+
+.outOfStockTitle {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: #b05a2f;
+}
+
+.outOfStockDesc {
+  font-size: 11px;
+  color: #9a8c7a;
+  margin-bottom: 16px;
+  line-height: 1.55;
+}
+
+.outOfStockItems {
+  display: flex;
+  flex-direction: column;
+}
+
+.removeAllBtn {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #b05a2f;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: opacity 0.2s;
+}
+
+.removeAllBtn:hover {
+  opacity: 0.65;
+}
+
+/* Item agotado */
+.itemUnavailable {
+  opacity: 0.5;
+  pointer-events: none;
+  /* deshabilita hover/interacción */
+}
+
+.itemUnavailable .remove {
+  pointer-events: all;
+  /* pero sí puede eliminar */
+}
+
+.itemTotalMuted {
+  color: var(--g400);
+  text-decoration: line-through;
+}
+
+/* Aviso en el summary */
+.summaryWarning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #fff8f4;
+  border-left: 2px solid #b05a2f;
+  padding: 10px 13px;
+  margin-bottom: 16px;
+  color: #b05a2f;
+}
+
+.summaryWarning p {
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0;
+  color: #b05a2f;
 }

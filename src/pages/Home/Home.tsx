@@ -137,7 +137,7 @@ const Home: React.FC = () => {
 
   const { data: featured } = useFetch(() => productService.getFeatured(), []);
 
-  // ✅ Fetch separado por categoría — garantiza exactamente 10 de cada una
+  // Fetch separado por categoría — garantiza exactamente 10 de cada una
   const { data: mujerData } = useFetch(
     () => productService.getProducts({ category: "mujer", limit: 10, page: 1 }),
     [],

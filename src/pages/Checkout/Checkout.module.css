@@ -265,7 +265,7 @@
   transition: border-color 0.2s;
 }
 
-/* ✅ El último campo suelto (no dentro de row) cierra el borde inferior */
+/* El último campo suelto (no dentro de row) cierra el borde inferior */
 .cardFields > .cardField:last-of-type {
   border-bottom: 1px solid #ddd9d2;
 }
@@ -308,7 +308,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   border: 1px solid #ddd9d2;    /* borde exterior del row */
-  border-top: none;             /* ✅ se une al campo de arriba sin duplicar */
+  border-top: none;             /* se une al campo de arriba sin duplicar */
   background: #faf8f5;
 }
 

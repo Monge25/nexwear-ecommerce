@@ -284,3 +284,122 @@
     width: 100%;
   }
 }
+/* ── Stock ───────────────────────────────────────────────────────────── */
+.itemUnavailable {
+  opacity: 0.5;
+}
+
+.outOfStockOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Asegura que itemImg tenga position relative para el overlay */
+.itemImg {
+  position: relative;
+  overflow: hidden;
+}
+
+.outOfStockLabel {
+  font-size: 10px;
+  color: #b05a2f;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin: 6px 0 4px;
+}
+
+.stockWarning {
+  font-size: 10px;
+  color: #b05a2f;
+  margin: 3px 0 0;
+}
+
+.itemPriceMuted {
+  color: #b8b0a5;
+  text-decoration: line-through;
+}
+
+.qty button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Sección agotados ────────────────────────────────────────────────── */
+.outOfStockSection {
+  margin-top: 16px;
+  border-top: 1px dashed #e0dbd3;
+  padding-top: 12px;
+}
+
+.outOfStockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+
+.outOfStockTitle {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: #b05a2f;
+}
+
+.removeAllBtn {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #b05a2f;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: opacity 0.2s;
+}
+.removeAllBtn:hover { opacity: 0.6; }
+
+/* ── Alerta en footer ────────────────────────────────────────────────── */
+.stockAlert {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  background: #fff8f4;
+  border-left: 2px solid #b05a2f;
+  padding: 9px 12px;
+  margin-bottom: 14px;
+  color: #b05a2f;
+}
+.stockAlert p {
+  font-size: 10.5px;
+  line-height: 1.5;
+  margin: 0;
+  color: #b05a2f;
+}
+
+/* ── Checkout deshabilitado ──────────────────────────────────────────── */
+.checkoutDisabled {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: #e8e4dc;
+  color: #b8b0a5;
+  border: none;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: not-allowed;
+  font-family: inherit;
+  text-align: center;
+}
