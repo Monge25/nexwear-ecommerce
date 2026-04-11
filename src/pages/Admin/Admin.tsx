@@ -210,7 +210,7 @@ const ImagePreview: React.FC<{
 // ─── Product Form ─────────────────────────────────────────────────────────────
 const blankProduct = (): ProductFormData => ({
   name: "",
-  slug: "",
+  // slug: "",
   category: "mujer",
   price: 0,
   originalPrice: undefined,
@@ -285,6 +285,7 @@ const AdminProductForm: React.FC<{
         <div className={styles.fieldWrap}>
           <label className={styles.fieldLabel}>Categoría</label>
           <select
+            required
             className={styles.fieldInput}
             value={String(form.category ?? "mujer")}
             onChange={(e) =>
@@ -317,9 +318,9 @@ const AdminProductForm: React.FC<{
           <label className={styles.fieldLabel}>Precio (MXN) *</label>
           <input
             className={styles.fieldInput}
-            type="number"
-            min={0}
-            step={0.01}
+            // type="number"
+            // min={0}
+            // step={0.01}
             value={form.price ?? ""}
             onChange={(e) =>
               setForm((f) => ({ ...f, price: Number(e.target.value) }))
