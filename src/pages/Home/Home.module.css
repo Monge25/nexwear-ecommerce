@@ -678,7 +678,7 @@
 .bannerImg {
   position: absolute;
   inset: 0;
-  background-image: url("C:\nexwear-react-ts\nexwear\src\public\images\banners\look2.png");
+  background-image: url("C:\nexwear-react-ts\nexwear\public\images\banners\look2.png");
   background-size: cover;
   background-position: center;
 }
@@ -718,7 +718,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url("src/public/images/banners/Looks/look1.png");
+  background-image: url("/images/banners/Looks/look1.png");
   background-size: cover;
   background-position: center;
   filter: brightness(0.6);

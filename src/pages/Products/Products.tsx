@@ -267,7 +267,7 @@ const Products: React.FC = () => {
               <span>$0</span>
 
               <input
-                type="number"
+                // type="number"
                 className={styles.priceInput}
                 value={priceInput}
                 min={0}
