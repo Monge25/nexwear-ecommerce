@@ -958,7 +958,7 @@ const ProductsSection: React.FC<{
                 refetch();
               }}
             >
-              Listo, volver a la lista ✓
+              Listo, volver a la lista 
             </button>
           </div>
         </>

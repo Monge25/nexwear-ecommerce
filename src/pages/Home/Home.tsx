@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useFetch } from "@/hooks/useFetch";
 import productService from "@/services/productService";
 import ProductCard from "@/components/common/ProductCard";
-import { useCart } from "@/hooks/useCart";
 import type { Product } from "@/types";
 import styles from "./Home.module.css";
 
@@ -62,7 +61,6 @@ const ProductCarousel: React.FC<CarouselProps> = ({
     [products.length],
   );
 
-  // Sincronizar dots al hacer scroll manual
   const handleScroll = () => {
     if (!trackRef.current) return;
     const index = Math.round(trackRef.current.scrollLeft / CARD_WIDTH);
@@ -136,12 +134,18 @@ const ProductCarousel: React.FC<CarouselProps> = ({
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const [slide, setSlide] = React.useState(0);
-  const { addItem } = useCart();
+
   const { data: featured } = useFetch(() => productService.getFeatured(), []);
 
-  // ✅ limit subido a 20 para tener productos de ambas categorías
-  const { data: products } = useFetch(
-    () => productService.getProducts({ limit: 20 }),
+  // ✅ Fetch separado por categoría — garantiza exactamente 10 de cada una
+  const { data: mujerData } = useFetch(
+    () => productService.getProducts({ category: "mujer", limit: 10, page: 1 }),
+    [],
+  );
+
+  const { data: hombreData } = useFetch(
+    () =>
+      productService.getProducts({ category: "hombre", limit: 10, page: 1 }),
     [],
   );
 
@@ -150,22 +154,14 @@ const Home: React.FC = () => {
     return () => clearInterval(t);
   }, []);
 
-  const handleQuickAdd = (p: Product) => {
-    const size = p.sizes?.[0] ?? "M";
-    const color = p.colors?.[0] ?? { name: "Negro", hex: "#000" };
-    addItem(p, 1, size, color);
+  // onAddToCart es solo un callback informativo — el modal en ProductCard
+  // ya se encarga de llamar addItem con los datos correctos
+  const handleQuickAdd = (_p: Product) => {
+    // intencionalmente vacío
   };
 
-  // ✅ Filtros separados con límite de 10
-  const mujerProducts =
-    products?.data
-      ?.filter((p: Product) => p.category === "mujer")
-      .slice(0, 10) ?? [];
-
-  const hombreProducts =
-    products?.data
-      ?.filter((p: Product) => p.category === "hombre")
-      .slice(0, 10) ?? [];
+  const mujerProducts: Product[] = mujerData?.data ?? [];
+  const hombreProducts: Product[] = hombreData?.data ?? [];
 
   return (
     <main>
@@ -291,7 +287,7 @@ const Home: React.FC = () => {
             </Link>
           </div>
           <div className={styles.featGrid}>
-            {featured.slice(0, 4).map((p) => (
+            {featured.slice(0, 8).map((p) => (
               <ProductCard
                 key={p.id}
                 product={p}
@@ -351,7 +347,6 @@ const Home: React.FC = () => {
               style={{ backgroundImage: `url(${cat.image})` }}
               onClick={() => navigate(`/productos?category=${cat.key}`)}
             >
-              {/* ✅ overlay como elemento, no como clase externa */}
               <div className={styles.catOverlay} />
               <div className={styles.catInfo}>
                 <small>{cat.sub}</small>
@@ -362,6 +357,14 @@ const Home: React.FC = () => {
           ))}
         </div>
       </section>
+
+      {/* ── Trending Mujer — Carrusel ── */}
+      <ProductCarousel
+        title="Trending"
+        titleEm="Mujer"
+        products={mujerProducts}
+        onAddToCart={handleQuickAdd}
+      />
 
       {/* ── Banner Editorial ── */}
       <section className={styles.banner}>
@@ -378,14 +381,6 @@ const Home: React.FC = () => {
           </button>
         </div>
       </section>
-
-      {/* ── Trending Mujer — Carrusel ── */}
-      <ProductCarousel
-        title="Trending"
-        titleEm="Mujer"
-        products={mujerProducts}
-        onAddToCart={handleQuickAdd}
-      />
 
       {/* ── Trending Hombre — Carrusel ── */}
       <ProductCarousel

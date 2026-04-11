@@ -72,70 +72,88 @@ const CartSidebar: React.FC = () => {
               <span>Descubre las novedades</span>
             </div>
           ) : (
-            items.map((item) => (
-              <div
-                key={`${item.product.id}-${item.selectedSize}-${item.selectedColor.name}`}
-                className={styles.item}
-              >
+            items.map((item) => {
+              // Usa la imagen de la variante seleccionada, no la del producto base
+              const displayImage = item.variantImage ?? item.product.imageUrl;
+
+              return (
                 <div
-                  className={styles.itemImg}
-                  style={{ background: item.selectedColor.hex }}
+                  key={`${item.product.id}-${item.selectedSize}-${item.selectedColor.name}`}
+                  className={styles.item}
                 >
-                  {item.product.imageUrl && (
-                    <img src={item.product.imageUrl} alt={item.product.name} />
-                  )}
-                </div>
-                <div className={styles.itemInfo}>
-                  <p className={styles.itemName}>{item.product.name}</p>
-                  <p className={styles.itemMeta}>
-                    Talla: {item.selectedSize} · {item.selectedColor.name} ·{" "}
-                    {formatPrice(item.product.price)} c/u
-                  </p>
-                  <div className={styles.qty}>
+                  <div
+                    className={styles.itemImg}
+                    style={{ background: item.selectedColor.hex + "22" }}
+                  >
+                    {displayImage && (
+                      <img src={displayImage} alt={item.product.name} />
+                    )}
+                  </div>
+                  <div className={styles.itemInfo}>
+                    <p className={styles.itemName}>{item.product.name}</p>
+                    <p className={styles.itemMeta}>
+                      Talla: {item.selectedSize} ·{" "}
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: item.selectedColor.hex,
+                          border: "1px solid rgba(0,0,0,0.15)",
+                          marginRight: 3,
+                          verticalAlign: "middle",
+                        }}
+                      />
+                      {item.selectedColor.name} ·{" "}
+                      {formatPrice(item.product.price)} c/u
+                    </p>
+                    <div className={styles.qty}>
+                      <button
+                        onClick={() =>
+                          updateQuantity(
+                            item.product.id,
+                            item.selectedSize,
+                            item.selectedColor.name,
+                            item.quantity - 1,
+                          )
+                        }
+                      >
+                        −
+                      </button>
+                      <span>{item.quantity}</span>
+                      <button
+                        onClick={() =>
+                          updateQuantity(
+                            item.product.id,
+                            item.selectedSize,
+                            item.selectedColor.name,
+                            item.quantity + 1,
+                          )
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
                     <button
+                      className={styles.remove}
                       onClick={() =>
-                        updateQuantity(
+                        removeItem(
                           item.product.id,
                           item.selectedSize,
                           item.selectedColor.name,
-                          item.quantity - 1,
                         )
                       }
                     >
-                      −
-                    </button>
-                    <span>{item.quantity}</span>
-                    <button
-                      onClick={() =>
-                        updateQuantity(
-                          item.product.id,
-                          item.selectedSize,
-                          item.selectedColor.name,
-                          item.quantity + 1,
-                        )
-                      }
-                    >
-                      +
+                      Eliminar
                     </button>
                   </div>
-                  <button
-                    className={styles.remove}
-                    onClick={() =>
-                      removeItem(
-                        item.product.id,
-                        item.selectedSize,
-                        item.selectedColor.name,
-                      )
-                    }
-                  >
-                    Eliminar
-                  </button>
+                  <span className={styles.itemPrice}>
+                    {formatPrice(item.product.price * item.quantity)}
+                  </span>
                 </div>
-                <span className={styles.itemPrice}>
-                  {formatPrice(item.product.price * item.quantity)}
-                </span>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -146,7 +164,7 @@ const CartSidebar: React.FC = () => {
             <div className={styles.upsell}>
               {freeShippingRemaining === 0 ? (
                 <p>
-                  🎉 ¡Tienes <strong>envío gratis</strong>!
+                  ¡Tienes <strong>envío gratis</strong>!
                 </p>
               ) : (
                 <p>
@@ -187,7 +205,7 @@ const CartSidebar: React.FC = () => {
               Finalizar Compra →
             </Link>
             <p className={styles.secure}>
-              🔒 Pago seguro · Devoluciones gratis · 30 días
+             Pago seguro · Devoluciones gratis · 30 días
             </p>
           </div>
         )}

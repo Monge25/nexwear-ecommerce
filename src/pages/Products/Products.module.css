@@ -366,3 +366,56 @@ input[type=range]::-webkit-slider-thumb:hover {
   outline: none;
   border-color: var(--negro);
 }
+
+.pageBtnOn {
+  background: #0a0a0a;
+  color: #fff;
+  border-color: #0a0a0a;
+}
+
+.pageEllipsis {
+  padding: 0 4px;
+  color: #999;
+  align-self: center;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 32px;
+  padding-bottom: 32px;
+}
+
+.pageBtn {
+  padding: 8px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.pageBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Botón "Siguiente" activo con fondo oscuro */
+.pageBtnNext {
+  background: #0a0a0a;
+  color: #fff;
+  border-color: #0a0a0a;
+}
+
+.pageInfo {
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #666;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+}

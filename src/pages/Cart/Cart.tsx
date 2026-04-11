@@ -51,77 +51,103 @@ const Cart: React.FC = () => {
             </button>
           </div>
 
-          {items.map((item) => (
-            <div
-              key={`${item.product.id}-${item.selectedSize}-${item.selectedColor.name}`}
-              className={styles.item}
-            >
+          {items.map((item) => {
+            // ✅ Usa la imagen de la variante si existe, si no cae en la del producto
+            const displayImage = item.variantImage ?? item.product.imageUrl;
+
+            return (
               <div
-                className={styles.itemImg}
-                style={{ background: item.selectedColor.hex }}
+                key={`${item.product.id}-${item.selectedSize}-${item.selectedColor.name}`}
+                className={styles.item}
               >
-                {item.product.imageUrl && (
-                  <img src={item.product.imageUrl} alt={item.product.name} />
-                )}
-              </div>
-              <div className={styles.itemInfo}>
-                <Link
-                  to={`/productos/${item.product.slug}`}
-                  className={styles.itemName}
+                <div
+                  className={styles.itemImg}
+                  style={{ background: item.selectedColor.hex + "22" }}
                 >
-                  {item.product.name}
-                </Link>
-                <p className={styles.itemMeta}>
-                  Talla: {item.selectedSize} · {item.selectedColor.name}
-                </p>
-                <p className={styles.itemMeta}>
-                  {formatPrice(item.product.price)} por unidad
-                </p>
-                <div className={styles.qty}>
+                  {displayImage && (
+                    <img src={displayImage} alt={item.product.name} />
+                  )}
+                </div>
+
+                <div className={styles.itemInfo}>
+                  <Link
+                    to={`/productos/${item.product.slug}`}
+                    className={styles.itemName}
+                  >
+                    {item.product.name}
+                  </Link>
+
+                  <p className={styles.itemMeta}>
+                    Talla: <strong>{item.selectedSize}</strong>
+                    {" · "}
+                    {/* ✅ Muestra swatch del color real elegido */}
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: item.selectedColor.hex,
+                        border: "1px solid rgba(0,0,0,0.15)",
+                        marginRight: 4,
+                        verticalAlign: "middle",
+                      }}
+                    />
+                    <strong>{item.selectedColor.name}</strong>
+                  </p>
+
+                  <p className={styles.itemMeta}>
+                    {formatPrice(item.product.price)} por unidad
+                  </p>
+
+                  <div className={styles.qty}>
+                    <button
+                      onClick={() =>
+                        updateQuantity(
+                          item.product.id,
+                          item.selectedSize,
+                          item.selectedColor.name,
+                          item.quantity - 1,
+                        )
+                      }
+                    >
+                      −
+                    </button>
+                    <span>{item.quantity}</span>
+                    <button
+                      onClick={() =>
+                        updateQuantity(
+                          item.product.id,
+                          item.selectedSize,
+                          item.selectedColor.name,
+                          item.quantity + 1,
+                        )
+                      }
+                    >
+                      +
+                    </button>
+                  </div>
+
                   <button
+                    className={styles.remove}
                     onClick={() =>
-                      updateQuantity(
+                      removeItem(
                         item.product.id,
                         item.selectedSize,
                         item.selectedColor.name,
-                        item.quantity - 1,
                       )
                     }
                   >
-                    −
-                  </button>
-                  <span>{item.quantity}</span>
-                  <button
-                    onClick={() =>
-                      updateQuantity(
-                        item.product.id,
-                        item.selectedSize,
-                        item.selectedColor.name,
-                        item.quantity + 1,
-                      )
-                    }
-                  >
-                    +
+                    Eliminar
                   </button>
                 </div>
-                <button
-                  className={styles.remove}
-                  onClick={() =>
-                    removeItem(
-                      item.product.id,
-                      item.selectedSize,
-                      item.selectedColor.name,
-                    )
-                  }
-                >
-                  Eliminar
-                </button>
+
+                <span className={styles.itemTotal}>
+                  {formatPrice(item.product.price * item.quantity)}
+                </span>
               </div>
-              <span className={styles.itemTotal}>
-                {formatPrice(item.product.price * item.quantity)}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Summary */}

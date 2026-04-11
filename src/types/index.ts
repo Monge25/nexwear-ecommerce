@@ -79,6 +79,7 @@ export interface CartItem {
   quantity: number
   selectedSize: Size
   selectedColor: ProductColor
+  variantImage?: string
 }
 
 export interface Cart {

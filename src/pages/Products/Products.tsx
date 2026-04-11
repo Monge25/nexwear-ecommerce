@@ -10,6 +10,7 @@ import styles from "./Products.module.css";
 
 // ─── Precio máximo en MXN ─────────────────────────────────────────────────────
 const MAX_PRICE = 10000;
+const PAGE_LIMIT = 20;
 
 // ─── Grid toggle config ───────────────────────────────────────────────────────
 const GRID_CONFIGS: { cols: number; dots: [number, number][] }[] = [
@@ -128,10 +129,12 @@ const Products: React.FC = () => {
   const activeSort = (searchParams.get("sort") ??
     "relevance") as ProductFilters["sortBy"];
   const activeSearch = searchParams.get("search") ?? "";
+  // ✅ Corregido: usar siempre "isOnSale" como clave de URL
   const isOnSale = searchParams.get("isOnSale") === "true";
-  // const isNew          = searchParams.get("isNew")  === "true";
   const activeSizes = searchParams.getAll("size") as ProductFilters["sizes"];
   const maxPrice = Number(searchParams.get("maxPrice") ?? MAX_PRICE);
+
+  const totalPages = Math.ceil(total / PAGE_LIMIT);
 
   const hasFilters = !!(
     activeCategory ||
@@ -150,11 +153,10 @@ const Products: React.FC = () => {
         ...(activeSort !== "relevance" && { sortBy: activeSort }),
         ...(activeSearch && { search: activeSearch }),
         ...(isOnSale && { isOnSale: true }),
-        // ...(isNew                      && { isNew: true }),
         ...(activeSizes?.length && { sizes: activeSizes }),
         ...(maxPrice < MAX_PRICE && { maxPrice }),
         page,
-        limit: 12,
+        limit: PAGE_LIMIT, // ✅ 20 productos por página
       };
       const res = await productService.getProducts(filters);
       setProducts(res.data);
@@ -181,8 +183,8 @@ const Products: React.FC = () => {
   }, [fetchProducts]);
 
   useEffect(() => {
-  setPriceInput(String(maxPrice));
-}, [maxPrice]);
+    setPriceInput(String(maxPrice));
+  }, [maxPrice]);
 
   // ── Helpers de URL ─────────────────────────────────────────────────────────
   const setParam = (key: string, value: string | null) => {
@@ -210,10 +212,11 @@ const Products: React.FC = () => {
     setPage(1);
   };
 
-  const priceLabel =
-    maxPrice >= MAX_PRICE
-      ? `$${(MAX_PRICE / 1000).toFixed(0)}k+`
-      : `$${maxPrice.toLocaleString("es-MX")}`;
+  // ── Cambio de página con scroll al inicio ──────────────────────────────────
+  const goToPage = (newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div className={styles.page}>
@@ -271,11 +274,8 @@ const Products: React.FC = () => {
                 max={MAX_PRICE}
                 onChange={(e) => {
                   const val = e.target.value;
-
                   setPriceInput(val);
-
                   const num = Number(val);
-
                   if (!isNaN(num)) {
                     setParam("maxPrice", num >= MAX_PRICE ? null : String(num));
                   }
@@ -291,9 +291,7 @@ const Products: React.FC = () => {
               value={maxPrice}
               onChange={(e) => {
                 const val = Number(e.target.value);
-
                 setPriceInput(String(val));
-
                 setParam("maxPrice", val >= MAX_PRICE ? null : String(val));
               }}
             />
@@ -318,19 +316,12 @@ const Products: React.FC = () => {
         <div className={styles.group}>
           <p className={styles.groupTitle}>Disponibilidad</p>
           <div className={styles.items}>
-            {/* <label className={styles.check}>
-              <input
-                type="checkbox"
-                checked={isNew}
-                onChange={() => setParam("isNew", isNew ? null : "true")}
-              />
-              Solo nuevos
-            </label> */}
             <label className={styles.check}>
               <input
                 type="checkbox"
                 checked={isOnSale}
-                onChange={() => setParam("isSale", isOnSale ? null : "true")}
+                // ✅ Corregido: clave "isOnSale" consistente en toda la app
+                onChange={() => setParam("isOnSale", isOnSale ? null : "true")}
               />
               Solo en rebaja
             </label>
@@ -365,15 +356,10 @@ const Products: React.FC = () => {
             {isOnSale && (
               <span className={styles.queryTag}>
                 Rebaja
-                <button onClick={() => setParam("isSale", null)}>✕</button>
+                {/* ✅ Corregido: clave "isOnSale" */}
+                <button onClick={() => setParam("isOnSale", null)}>✕</button>
               </span>
             )}
-            {/* {isNew && (
-              <span className={styles.queryTag}>
-                Nuevo
-                <button onClick={() => setParam("isNew", null)}>✕</button>
-              </span>
-            )} */}
             {activeSizes?.map((s) => (
               <span key={s} className={styles.queryTag}>
                 Talla {s}
@@ -397,7 +383,6 @@ const Products: React.FC = () => {
               ))}
             </select>
 
-            {/* ── Grid toggle mejorado ── */}
             <GridToggle gridCols={gridCols} onChange={setGridCols} />
           </div>
         </div>
@@ -455,22 +440,51 @@ const Products: React.FC = () => {
           </div>
         )}
 
-        {/* Paginación */}
-        {total > 12 && !loading && (
+        {/* ── Paginación mejorada ── */}
+        {totalPages > 1 && !loading && (
           <div className={styles.pagination}>
+            {/* Anterior */}
             <button
               disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => goToPage(page - 1)}
               className={styles.pageBtn}
             >
               ← Anterior
             </button>
-            <span className={styles.pageInfo}>
-              {page} / {Math.ceil(total / 12)}
-            </span>
+
+            {/* Números de página */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => {
+                // Mostrar: primera, última, página actual y sus vecinas
+                return p === 1 || p === totalPages || Math.abs(p - page) <= 1;
+              })
+              .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                  acc.push("...");
+                }
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === "..." ? (
+                  <span key={`ellipsis-${idx}`} className={styles.pageEllipsis}>
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => goToPage(item as number)}
+                    className={`${styles.pageBtn} ${page === item ? styles.pageBtnOn : ""}`}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+
+            {/* Siguiente */}
             <button
-              disabled={page >= Math.ceil(total / 12)}
-              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages}
+              onClick={() => goToPage(page + 1)}
               className={styles.pageBtn}
             >
               Siguiente →
