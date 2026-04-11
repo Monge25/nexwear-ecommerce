@@ -15,7 +15,7 @@ export interface ProductVariant {
 export interface Product {
   id: string
   name: string
-  // slug: string
+  slug: string
   category: 'mujer' | 'hombre' | 'exteriores' | 'accesorios'
   price: number
   originalPrice?: number
