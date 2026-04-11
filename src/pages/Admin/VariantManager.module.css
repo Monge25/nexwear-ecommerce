@@ -246,3 +246,354 @@
   color: #b91c1c;
   background: #fff;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   NUEVAS CLASES — requeridas por VariantManager agrupado
+   ══════════════════════════════════════════════════════════════ */
+
+/* Wrapper general de la sección (reemplaza formCard del Admin) */
+.formCard {
+  background: #fff;
+  border: 0.5px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+/* Header de la card con título + botón CTA */
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+/* Título dentro de la card */
+.cardTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111;
+}
+
+/* Banner de error con botón de cierre */
+.errorBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff0f0;
+  border: 0.5px solid #fca5a5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #b91c1c;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+/* Texto de carga centrado */
+.loadingText {
+  color: #9a9a9a;
+  font-size: 13px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* Estado vacío centrado */
+.emptyState {
+  color: #999;
+  font-size: 13px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* Formulario inline de nueva variante */
+.inlineForm {
+  background: #fafafa;
+  border: 0.5px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+/* Título dentro del formulario inline */
+.inlineFormTitle {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: #111;
+}
+
+/* Grid de 2 columnas para campos del formulario */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Wrapper de campo individual */
+.fieldWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Etiqueta de campo */
+.fieldLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Input genérico de campo */
+.fieldInput {
+  padding: 7px 10px;
+  font-size: 13px;
+  border: 0.5px solid #e8e8e8;
+  border-radius: 6px;
+  outline: none;
+  font-family: inherit;
+  color: #111;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.fieldInput:focus {
+  border-color: #aaa;
+}
+
+/* Texto de ayuda bajo un campo */
+.hint {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 3px;
+}
+
+/* Botón primario (fondo oscuro) */
+.btnFill {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 0.5px solid #111;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #111;
+  color: #fff;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.btnFill:hover {
+  opacity: 0.85;
+}
+
+.btnFill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Botón ghost (borde, fondo transparente) */
+.btnGhost {
+  padding: 8px 16px;
+  font-size: 13px;
+  border: 0.5px solid #d4d4d4;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #fff;
+  color: #555;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.btnGhost:hover {
+  background: #f5f5f5;
+}
+
+.btnGhost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Tabla de tallas (stock + modificador) ─────────────────── */
+
+/* Cabecera de la tabla de tallas */
+.sizeTableHeader {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  border-bottom: 0.5px solid #e8e8e8;
+}
+
+/* Fila de datos en la tabla de tallas */
+.sizeTableRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+/* Etiqueta de talla dentro de la tabla */
+.sizeTableLabel {
+  width: 56px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #111;
+  flex-shrink: 0;
+}
+
+/* Precio calculado al final de cada fila */
+.sizeTablePrice {
+  flex: 1;
+  font-size: 12px;
+  color: #888;
+}
+
+/* ── Chips de talla en la fila resumen ─────────────────────── */
+.sizeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 0.5px solid #e8e8e8;
+  border-radius: 5px;
+  background: #fafafa;
+}
+
+.sizeChipLabel {
+  font-weight: 500;
+  color: #111;
+}
+
+.sizeChipStock {
+  color: #aaa;
+}
+
+.sizeChipZero .sizeChipLabel,
+.sizeChipZero .sizeChipStock {
+  color: #ccc;
+}
+
+/* ── Stock badge en el nombre del color ────────────────────── */
+.stockBadge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  border-radius: 4px;
+  background: #f5f5f5;
+  color: #888;
+  font-weight: 400;
+}
+
+/* ── Panel de edición inline ───────────────────────────────── */
+.editPanel {
+  background: #fafafa;
+  border-top: 0.5px solid #0a0a0a;
+  padding: 16px;
+}
+
+.editPanelTitle {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: #111;
+}
+
+/* ── Filtros ───────────────────────────────────────────────── */
+.filtersBar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ── Fila de grupo de color (clickeable) ───────────────────── */
+.groupRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.groupRow:hover {
+  background: #fafafa;
+}
+
+.groupRowOpen {
+  background: #fafafa;
+}
+
+/* Imagen thumbnail del color */
+.groupThumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 0.5px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+/* Placeholder cuando no hay imagen */
+.groupThumbEmpty {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  border: 0.5px dashed #d4d4d4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #bbb;
+  flex-shrink: 0;
+}
+
+/* Swatch circular del color */
+.groupSwatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 0.5px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+/* Bloque de texto dentro de la fila de grupo */
+.groupInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.groupName {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111;
+}
+
+.groupPrice {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.groupSizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+/* Acciones de la fila (editar / eliminar) */
+.groupActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}

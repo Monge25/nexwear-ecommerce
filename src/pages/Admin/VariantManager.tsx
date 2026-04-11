@@ -1,18 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import styles from "./Admin.module.css";
+import styles from "./VariantManager.module.css";
 import env from "@/config/environment";
 
 const BASE = env.API_BASE_URL;
 
 // ── Tipos ────────────────────────────────────────────────────
-interface VariantForm {
-  color: string;
-  colorHex: string;
-  size: string;
-  stock: number;
-  priceModifier: number;
-  imageFile: File | null;
-}
 
 interface Variant {
   id: string;
@@ -26,12 +18,27 @@ interface Variant {
   isActive: boolean;
 }
 
+interface ColorGroup {
+  color: string;
+  colorHex: string;
+  imageUrl?: string;
+  items: Variant[];
+}
+
+interface SizeEntry {
+  size: string;
+  stock: number;
+  priceModifier: number;
+}
+
 interface VariantManagerProps {
   productId: string;
   basePrice: number;
   token: string;
-  apiUrl: string | undefined;
+  apiUrl?: string;
 }
+
+// ── Constantes ───────────────────────────────────────────────
 
 const SIZES = [
   "XS",
@@ -49,51 +56,76 @@ const SIZES = [
   "42",
 ];
 
-const blankVariant = (): VariantForm => ({
-  color: "",
-  colorHex: "#000000",
-  size: "",
-  stock: 0,
-  priceModifier: 0,
-  imageFile: null,
-});
+// ── Helpers ──────────────────────────────────────────────────
 
-const variantToForm = (v: Variant): VariantForm => ({
-  color: v.color ?? "",
-  colorHex: v.colorHex ?? "#000000",
-  size: v.size ?? "",
-  stock: v.stock,
-  priceModifier: v.priceModifier,
-  imageFile: null,
-});
+function groupByColor(variants: Variant[]): ColorGroup[] {
+  const map = new Map<string, ColorGroup>();
+  for (const v of variants) {
+    const key = `${v.color ?? ""}|${v.colorHex ?? ""}`;
+    if (!map.has(key)) {
+      map.set(key, {
+        color: v.color ?? "",
+        colorHex: v.colorHex ?? "#000000",
+        imageUrl: v.imageUrl,
+        items: [],
+      });
+    }
+    map.get(key)!.items.push(v);
+  }
+  return Array.from(map.values());
+}
+
+function totalStock(items: Variant[]) {
+  return items.reduce((s, v) => s + v.stock, 0);
+}
+
+function priceRange(items: Variant[], base: number) {
+  const prices = items.map((v) => base + v.priceModifier);
+  const mn = Math.min(...prices);
+  const mx = Math.max(...prices);
+  if (mn === mx) return `$${mn.toFixed(2)}`;
+  return `$${mn.toFixed(2)} – $${mx.toFixed(2)}`;
+}
+
+// ── Componente principal ─────────────────────────────────────
 
 export const VariantManager: React.FC<VariantManagerProps> = ({
   productId,
   basePrice,
   token,
-  apiUrl,
 }) => {
   const [variants, setVariants] = useState<Variant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<VariantForm>(blankVariant());
-  const [saving, setSaving] = useState(false);
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [error, setError]             = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null); // ← id de variante en edición
-  const [editForm, setEditForm] = useState<VariantForm>(blankVariant());
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // ── Cargar variantes al montar ───────────────────────────────
+  // Formulario nueva variante
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newColor, setNewColor] = useState("");
+  const [newHex, setNewHex] = useState("#000000");
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
+  const [newSizes, setNewSizes] = useState<SizeEntry[]>([]);
+  const [savingNew, setSavingNew] = useState(false);
+  const newFileRef = useRef<HTMLInputElement>(null);
+
+  // Edición inline por grupo
+  const [editingGroup, setEditingGroup] = useState<string | null>(null);
+  const [editColor, setEditColor] = useState("");
+  const [editHex, setEditHex] = useState("#000000");
+  const [editSizes, setEditSizes] = useState<SizeEntry[]>([]);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Filtros
+  const [filterColor, setFilterColor] = useState("");
+  const [filterSize, setFilterSize] = useState("");
+
+  // ── Cargar variantes ─────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(
-          `${BASE}/products/${productId}/variants`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        const res = await fetch(`${BASE}/products/${productId}/variants`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await res.json();
         setVariants(Array.isArray(data) ? data : []);
       } catch {
@@ -103,12 +135,161 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
       }
     };
     load();
-  }, [productId, apiUrl, token]);
+  }, [productId, token]);
 
-  // ── Crear variante ───────────────────────────────────────────
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+  // ── Crear variante: N llamadas POST (una por talla) ───────
+  const handleCreate = async () => {
+    if (!newColor.trim()) {
+      setError("Ingresa un nombre de color.");
+      return;
+    }
+    if (newSizes.length === 0) {
+      setError("Selecciona al menos una talla.");
+      return;
+    }
+
+    setSavingNew(true);
+    setError(null);
+    const created: Variant[] = [];
+
+    try {
+      for (const entry of newSizes) {
+        const res = await fetch(`${BASE}/products/${productId}/variants`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            color: newColor.trim(),
+            colorHex: newHex,
+            size: entry.size,
+            stock: entry.stock,
+            priceModifier: entry.priceModifier,
+          }),
+        });
+        if (!res.ok) throw new Error(`Error al crear talla ${entry.size}`);
+        const variant: Variant = await res.json();
+
+        // Subir imagen solo en la primera talla del color
+        if (newImageFile && created.length === 0) {
+          const fd = new FormData();
+          fd.append("file", newImageFile);
+          const imgRes = await fetch(
+            `${BASE}/products/${productId}/variants/${variant.id}/image`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: fd,
+            },
+          );
+          if (imgRes.ok) {
+            const withImg: Variant = await imgRes.json();
+            created.push(withImg);
+            continue;
+          }
+        }
+        created.push(variant);
+      }
+
+      setVariants((prev) => [...prev, ...created]);
+      resetNewForm();
+    } catch (err: any) {
+      setError(err.message ?? "Error al guardar variantes.");
+    } finally {
+      setSavingNew(false);
+    }
+  };
+
+  const resetNewForm = () => {
+    setShowNewForm(false);
+    setNewColor("");
+    setNewHex("#000000");
+    setNewSizes([]);
+    setNewImageFile(null);
+    if (newFileRef.current) newFileRef.current.value = "";
+  };
+
+  // ── Abrir edición de un grupo ────────────────────────────
+  const openEdit = (group: ColorGroup) => {
+    setEditingGroup(group.color);
+    setEditColor(group.color);
+    setEditHex(group.colorHex);
+    setEditImageFile(null);
+    setEditSizes(
+      group.items.map((v) => ({
+        size: v.size ?? "",
+        stock: v.stock,
+        priceModifier: v.priceModifier,
+      })),
+    );
+    setShowNewForm(false);
+  };
+
+  // ── Guardar edición: PUT por cada variante del grupo ─────
+  const handleSaveEdit = async (group: ColorGroup) => {
+    setSavingEdit(true);
+    setError(null);
+    try {
+      const updated: Variant[] = [];
+
+      for (const item of group.items) {
+        const entry = editSizes.find((e) => e.size === item.size);
+        if (!entry) continue;
+
+        const res = await fetch(
+          `${BASE}/products/${productId}/variants/${item.id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              color: editColor || null,
+              colorHex: editHex || null,
+              size: item.size,
+              stock: entry.stock,
+              priceModifier: entry.priceModifier,
+            }),
+          },
+        );
+        if (!res.ok) throw new Error(`Error al actualizar talla ${item.size}`);
+        let v: Variant = await res.json();
+
+        // Subir nueva imagen solo en la primera variante del grupo
+        if (editImageFile && updated.length === 0) {
+          const fd = new FormData();
+          fd.append("file", editImageFile);
+          const imgRes = await fetch(
+            `${BASE}/products/${productId}/variants/${item.id}/image`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: fd,
+            },
+          );
+          if (imgRes.ok) v = await imgRes.json();
+        }
+
+        updated.push(v);
+      }
+
+      setVariants((prev) => {
+        const without = prev.filter((v) => v.color !== group.color);
+        return [...without, ...updated];
+      });
+      setEditingGroup(null);
+    } catch (err: any) {
+      setError(err.message ?? "Error al actualizar variantes.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // ── Agregar talla nueva al grupo en edición ───────────────
+  const handleAddSizeToEdit = async (group: ColorGroup, size: string) => {
+    setSavingEdit(true);
     setError(null);
     try {
       const res = await fetch(`${BASE}/products/${productId}/variants`, {
@@ -118,444 +299,173 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          color: form.color || null,
-          colorHex: form.colorHex || null,
-          size: form.size || null,
-          stock: form.stock,
-          priceModifier: form.priceModifier,
+          color: editColor || group.color,
+          colorHex: editHex || group.colorHex,
+          size,
+          stock: 0,
+          priceModifier: editSizes[0]?.priceModifier ?? 0,
         }),
       });
-      if (!res.ok) throw new Error("Error al crear la variante");
-      const variant: Variant = await res.json();
-
-      if (form.imageFile) {
-        const imgData = new FormData();
-        imgData.append("file", form.imageFile);
-        const imgRes = await fetch(
-          `${BASE}/products/${productId}/variants/${variant.id}/image`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: imgData,
-          },
-        );
-        if (imgRes.ok) {
-          const withImg: Variant = await imgRes.json();
-          setVariants((v) => [...v, withImg]);
-        } else {
-          setVariants((v) => [...v, variant]);
-        }
-      } else {
-        setVariants((v) => [...v, variant]);
-      }
-
-      setForm(blankVariant());
-      setShowForm(false);
-      if (fileRef.current) fileRef.current.value = "";
-    } catch {
-      setError("Ocurrió un error al guardar la variante.");
+      if (!res.ok) throw new Error("Error al agregar talla");
+      const newVariant: Variant = await res.json();
+      setVariants((prev) => [...prev, newVariant]);
+      setEditSizes((prev) => [
+        ...prev,
+        { size, stock: 0, priceModifier: editSizes[0]?.priceModifier ?? 0 },
+      ]);
+    } catch (err: any) {
+      setError(err.message ?? "Error al agregar talla.");
     } finally {
-      setSaving(false);
+      setSavingEdit(false);
     }
   };
 
-  // ── Guardar edición ──────────────────────────────────────────
-  const handleSaveEdit = async (variantId: string) => {
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await fetch(
-        `${BASE}/products/${productId}/variants/${variantId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            color: editForm.color || null,
-            colorHex: editForm.colorHex || null,
-            size: editForm.size || null,
-            stock: editForm.stock,
-            priceModifier: editForm.priceModifier,
-          }),
-        },
-      );
-      if (!res.ok) throw new Error("Error al actualizar la variante");
-      const updated: Variant = await res.json();
-
-      // Subir imagen si se seleccionó una nueva
-      if (editForm.imageFile) {
-        const imgData = new FormData();
-        imgData.append("file", editForm.imageFile);
-        const imgRes = await fetch(
-          `${BASE}/products/${productId}/variants/${variantId}/image`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: imgData,
-          },
-        );
-        if (imgRes.ok) {
-          const withImg: Variant = await imgRes.json();
-          setVariants((v) => v.map((x) => (x.id === variantId ? withImg : x)));
-        } else {
-          setVariants((v) => v.map((x) => (x.id === variantId ? updated : x)));
-        }
-      } else {
-        setVariants((v) => v.map((x) => (x.id === variantId ? updated : x)));
-      }
-
-      setEditingId(null);
-    } catch {
-      setError("No se pudo actualizar la variante.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ── Subir/reemplazar imagen ──────────────────────────────────
-  const handleImageUpload = async (variantId: string, file: File) => {
-    setUploadingId(variantId);
-    setError(null);
-    try {
-      const imgData = new FormData();
-      imgData.append("file", file);
-      const res = await fetch(
-        `${BASE}/products/${productId}/variants/${variantId}/image`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: imgData,
-        },
-      );
-      if (!res.ok) throw new Error("Error al subir imagen");
-      const updated: Variant = await res.json();
-      setVariants((v) => v.map((x) => (x.id === variantId ? updated : x)));
-    } catch {
-      setError("No se pudo subir la imagen.");
-    } finally {
-      setUploadingId(null);
-    }
-  };
-
-  // ── Eliminar variante ────────────────────────────────────────
-  const handleDelete = async (variantId: string) => {
-    if (!confirm("¿Eliminar esta variante?")) return;
+  // ── Eliminar talla individual ────────────────────────────
+  const handleDeleteSize = async (variantId: string) => {
+    if (!confirm("¿Eliminar esta talla?")) return;
+    const deleted = variants.find((v) => v.id === variantId);
     try {
       await fetch(`${BASE}/products/${productId}/variants/${variantId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      setVariants((v) => v.filter((x) => x.id !== variantId));
+      setVariants((prev) => prev.filter((v) => v.id !== variantId));
+      if (deleted) {
+        setEditSizes((prev) => prev.filter((e) => e.size !== deleted.size));
+      }
     } catch {
-      setError("No se pudo eliminar la variante.");
+      setError("No se pudo eliminar la talla.");
     }
   };
 
-  // ── Formulario de edición inline ─────────────────────────────
-  const renderEditForm = (v: Variant) => (
-    <div
-      style={{
-        background: "#fafafa",
-        border: "0.5px solid #e8e8e8",
-        borderRadius: 8,
-        padding: 16,
-        marginTop: 10,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 500,
-          marginBottom: 12,
-          color: "#111",
-        }}
-      >
-        Editando variante
-      </div>
+  // ── Eliminar grupo entero ────────────────────────────────
+  const handleDeleteGroup = async (group: ColorGroup) => {
+    if (!confirm(`¿Eliminar todas las variantes de "${group.color}"?`)) return;
+    try {
+      await Promise.all(
+        group.items.map((v) =>
+          fetch(`${BASE}/products/${productId}/variants/${v.id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ),
+      );
+      setVariants((prev) => prev.filter((v) => v.color !== group.color));
+      if (editingGroup === group.color) setEditingGroup(null);
+    } catch {
+      setError("No se pudo eliminar el grupo.");
+    }
+  };
 
-      <div className={styles.grid2} style={{ marginBottom: 12 }}>
-        <div className={styles.fieldWrap}>
-          <label className={styles.fieldLabel}>Color</label>
-          <input
-            className={styles.fieldInput}
-            value={editForm.color}
-            onChange={(e) =>
-              setEditForm((f) => ({ ...f, color: e.target.value }))
-            }
-            placeholder="Negro"
-          />
-        </div>
-        <div className={styles.fieldWrap}>
-          <label className={styles.fieldLabel}>Código HEX</label>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              type="color"
-              value={editForm.colorHex}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, colorHex: e.target.value }))
-              }
-              style={{
-                width: 38,
-                height: 38,
-                padding: 2,
-                border: "0.5px solid #e8e8e8",
-                borderRadius: 6,
-                cursor: "pointer",
-              }}
-            />
-            <input
-              className={styles.fieldInput}
-              value={editForm.colorHex}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, colorHex: e.target.value }))
-              }
-              placeholder="#000000"
-              style={{ flex: 1 }}
-            />
-          </div>
-        </div>
-      </div>
+  // ── Helpers formulario nueva variante ────────────────────
+  const toggleNewSize = (size: string) => {
+    setNewSizes((prev) =>
+      prev.find((e) => e.size === size)
+        ? prev.filter((e) => e.size !== size)
+        : [...prev, { size, stock: 0, priceModifier: 0 }],
+    );
+  };
 
-      <div className={styles.grid2} style={{ marginBottom: 12 }}>
-        <div className={styles.fieldWrap}>
-          <label className={styles.fieldLabel}>Talla</label>
-          <div
-            style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}
-          >
-            {SIZES.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() =>
-                  setEditForm((f) => ({ ...f, size: f.size === s ? "" : s }))
-                }
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  border: "0.5px solid",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  borderColor: editForm.size === s ? "#111" : "#d4d4d4",
-                  background: editForm.size === s ? "#111" : "#fff",
-                  color: editForm.size === s ? "#fff" : "#555",
-                  fontWeight: editForm.size === s ? 500 : 400,
-                }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className={styles.fieldWrap}>
-          <label className={styles.fieldLabel}>Stock</label>
-          <input
-            className={styles.fieldInput}
-            type="number"
-            min={0}
-            value={editForm.stock}
-            onChange={(e) =>
-              setEditForm((f) => ({ ...f, stock: Number(e.target.value) }))
-            }
-          />
-        </div>
-      </div>
+  const updateNewSizeEntry = (
+    size: string,
+    field: "stock" | "priceModifier",
+    value: number,
+  ) => {
+    setNewSizes((prev) =>
+      prev.map((e) => (e.size === size ? { ...e, [field]: value } : e)),
+    );
+  };
 
-      <div className={styles.grid2} style={{ marginBottom: 12 }}>
-        <div className={styles.fieldWrap}>
-          <label className={styles.fieldLabel}>
-            Modificador de precio (MXN)
-          </label>
-          <input
-            className={styles.fieldInput}
-            type="number"
-            step={0.01}
-            value={editForm.priceModifier}
-            onChange={(e) =>
-              setEditForm((f) => ({
-                ...f,
-                priceModifier: Number(e.target.value),
-              }))
-            }
-          />
-          <div className={styles.hint}>
-            Precio final: ${(basePrice + editForm.priceModifier).toFixed(2)} MXN
-          </div>
-        </div>
-        <div className={styles.fieldWrap}>
-          <label className={styles.fieldLabel}>Nueva imagen (opcional)</label>
-          <input
-            className={styles.fieldInput}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(e) =>
-              setEditForm((f) => ({
-                ...f,
-                imageFile: e.target.files?.[0] ?? null,
-              }))
-            }
-          />
-          {v.imageUrl && !editForm.imageFile && (
-            <div style={{ marginTop: 6 }}>
-              <img
-                src={v.imageUrl}
-                alt=""
-                style={{
-                  width: 48,
-                  height: 48,
-                  objectFit: "cover",
-                  borderRadius: 6,
-                  border: "0.5px solid #e8e8e8",
-                }}
-              />
-            </div>
-          )}
-          {editForm.imageFile && (
-            <div style={{ fontSize: 11, color: "#15803d", marginTop: 4 }}>
-              ✓ {editForm.imageFile.name}
-            </div>
-          )}
-        </div>
-      </div>
+  const updateEditSizeEntry = (
+    size: string,
+    field: "stock" | "priceModifier",
+    value: number,
+  ) => {
+    setEditSizes((prev) =>
+      prev.map((e) => (e.size === size ? { ...e, [field]: value } : e)),
+    );
+  };
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-        <button
-          type="button"
-          className={styles.btnGhost}
-          onClick={() => setEditingId(null)}
-          disabled={saving}
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          className={styles.btnFill}
-          onClick={() => handleSaveEdit(v.id)}
-          disabled={saving}
-        >
-          {saving ? "Guardando…" : "Guardar cambios"}
-        </button>
-      </div>
-    </div>
-  );
+  // ── Filtrado + agrupación ────────────────────────────────
+  const filtered = variants.filter((v) => {
+    const mc = filterColor
+      ? (v.color ?? "").toLowerCase().includes(filterColor.toLowerCase())
+      : true;
+    const ms = filterSize ? v.size === filterSize : true;
+    return mc && ms;
+  });
 
+  const groups = groupByColor(filtered);
+
+  // ── Render ───────────────────────────────────────────────
   return (
     <div className={styles.formCard}>
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 16,
-        }}
-      >
-        <div className={styles.formTitle} style={{ marginBottom: 0 }}>
-          Variantes del producto
-        </div>
+      {/* ── Header ── */}
+      <div className={styles.cardHeader}>
+        <span className={styles.cardTitle}>Variantes del producto</span>
         <button
           className={styles.btnFill}
           style={{ padding: "6px 14px", fontSize: 13 }}
           onClick={() => {
-            setShowForm((v) => !v);
-            setEditingId(null);
+            setShowNewForm((v) => !v);
+            setEditingGroup(null);
           }}
         >
-          {showForm ? "Cancelar" : "+ Agregar variante"}
+          {showNewForm ? "Cancelar" : "+ Agregar variante"}
         </button>
       </div>
 
-      {/* Error */}
+      {/* ── Error ── */}
       {error && (
-        <div
-          style={{
-            background: "#fff0f0",
-            border: "0.5px solid #fca5a5",
-            borderRadius: 8,
-            padding: "10px 14px",
-            color: "#b91c1c",
-            fontSize: 13,
-            marginBottom: 14,
-          }}
-        >
+        <div className={styles.errorBanner}>
           {error}
-        </div>
-      )}
-
-      {/* Loading */}
-      {loading && (
-        <div
-          style={{
-            color: "#9a9a9a",
-            fontSize: 13,
-            textAlign: "center",
-            padding: "20px 0",
-          }}
-        >
-          Cargando variantes…
-        </div>
-      )}
-
-      {/* Formulario nueva variante */}
-      {showForm && (
-        <form
-          onSubmit={handleCreate}
-          style={{
-            background: "#fafafa",
-            border: "0.5px solid #e8e8e8",
-            borderRadius: 8,
-            padding: 16,
-            marginBottom: 16,
-          }}
-        >
-          <div
+          <button
+            onClick={() => setError(null)}
             style={{
-              fontSize: 13,
-              fontWeight: 500,
-              marginBottom: 12,
-              color: "#111",
+              marginLeft: 8,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "inherit",
+              fontSize: 14,
             }}
           >
-            Nueva variante
-          </div>
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ── Loading ── */}
+      {loading && <div className={styles.loadingText}>Cargando variantes…</div>}
+
+      {/* ── Formulario nueva variante ── */}
+      {showNewForm && (
+        <div className={styles.inlineForm} style={{ marginBottom: 16 }}>
+          <div className={styles.inlineFormTitle}>Nueva variante</div>
 
           <div className={styles.grid2} style={{ marginBottom: 12 }}>
             <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>Color</label>
+              <label className={styles.fieldLabel}>Color *</label>
               <input
                 className={styles.fieldInput}
-                value={form.color}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, color: e.target.value }))
-                }
-                placeholder="Negro"
+                value={newColor}
+                onChange={(e) => setNewColor(e.target.value)}
+                placeholder="Ej. Azul marino"
               />
             </div>
             <div className={styles.fieldWrap}>
               <label className={styles.fieldLabel}>Código HEX</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div className={styles.colorPickerWrap}>
                 <input
                   type="color"
-                  value={form.colorHex}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, colorHex: e.target.value }))
-                  }
-                  style={{
-                    width: 38,
-                    height: 38,
-                    padding: 2,
-                    border: "0.5px solid #e8e8e8",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                  }}
+                  value={newHex}
+                  onChange={(e) => setNewHex(e.target.value)}
+                  className={styles.colorSwatch}
                 />
                 <input
                   className={styles.fieldInput}
-                  value={form.colorHex}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, colorHex: e.target.value }))
-                  }
+                  value={newHex}
+                  onChange={(e) => setNewHex(e.target.value)}
                   placeholder="#000000"
                   style={{ flex: 1 }}
                 />
@@ -563,302 +473,456 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
             </div>
           </div>
 
-          <div className={styles.grid2} style={{ marginBottom: 12 }}>
-            <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>Talla</label>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 6,
-                  marginTop: 4,
-                }}
-              >
-                {SIZES.map((s) => (
+          {/* Imagen */}
+          <div className={styles.fieldWrap} style={{ marginBottom: 12 }}>
+            <label className={styles.fieldLabel}>Imagen de la variante</label>
+            <input
+              ref={newFileRef}
+              className={styles.fieldInput}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => setNewImageFile(e.target.files?.[0] ?? null)}
+            />
+            <span className={styles.hint}>JPG, PNG o WebP · máx 5 MB</span>
+          </div>
+
+          {/* Selector de tallas */}
+          <div className={styles.fieldWrap} style={{ marginBottom: 8 }}>
+            <label className={styles.fieldLabel}>
+              Tallas *
+              {newSizes.length > 0 && (
+                <span className={styles.sizesCount} style={{ marginLeft: 6 }}>
+                  {newSizes.length} seleccionada
+                  {newSizes.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </label>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 6,
+                marginTop: 4,
+              }}
+            >
+              {SIZES.map((s) => {
+                const active = !!newSizes.find((e) => e.size === s);
+                return (
                   <button
                     key={s}
                     type="button"
-                    onClick={() =>
-                      setForm((f) => ({ ...f, size: f.size === s ? "" : s }))
-                    }
-                    style={{
-                      padding: "4px 10px",
-                      fontSize: 12,
-                      border: "0.5px solid",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      borderColor: form.size === s ? "#111" : "#d4d4d4",
-                      background: form.size === s ? "#111" : "#fff",
-                      color: form.size === s ? "#fff" : "#555",
-                      fontWeight: form.size === s ? 500 : 400,
-                    }}
+                    onClick={() => toggleNewSize(s)}
+                    className={`${styles.sizeBtn} ${active ? styles.sizeBtnActive : ""}`}
                   >
                     {s}
                   </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Tabla stock + modificador por talla */}
+          {newSizes.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div className={styles.sizeTableHeader}>
+                <span style={{ width: 56 }}>Talla</span>
+                <span style={{ flex: 1 }}>Stock</span>
+                <span style={{ flex: 1 }}>Modificador (MXN)</span>
+                <span style={{ flex: 1 }}>Precio final</span>
+              </div>
+              <div className={styles.sizesList}>
+                {newSizes.map((entry) => (
+                  <div
+                    key={entry.size}
+                    className={`${styles.sizeRow} ${styles.sizeRowActive}`}
+                  >
+                    <span className={styles.sizeTableLabel}>{entry.size}</span>
+                    <input
+                      className={styles.stockInput}
+                      type="number"
+                      min={0}
+                      value={entry.stock}
+                      onChange={(e) =>
+                        updateNewSizeEntry(
+                          entry.size,
+                          "stock",
+                          Number(e.target.value),
+                        )
+                      }
+                      style={{ flex: 1 }}
+                    />
+                    <input
+                      className={styles.stockInput}
+                      type="number"
+                      step={0.01}
+                      value={entry.priceModifier}
+                      onChange={(e) =>
+                        updateNewSizeEntry(
+                          entry.size,
+                          "priceModifier",
+                          Number(e.target.value),
+                        )
+                      }
+                      style={{ flex: 1 }}
+                    />
+                    <span className={styles.sizeTablePrice}>
+                      ${(basePrice + entry.priceModifier).toFixed(2)}
+                    </span>
+                  </div>
                 ))}
               </div>
             </div>
-            <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>Stock *</label>
-              <input
-                className={styles.fieldInput}
-                type="number"
-                min={0}
-                value={form.stock}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, stock: Number(e.target.value) }))
-                }
-                required
-              />
-            </div>
-          </div>
+          )}
 
-          <div className={styles.grid2} style={{ marginBottom: 12 }}>
-            <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>
-                Modificador de precio (MXN)
-              </label>
-              <input
-                className={styles.fieldInput}
-                type="number"
-                step={0.01}
-                value={form.priceModifier}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    priceModifier: Number(e.target.value),
-                  }))
-                }
-              />
-              <div className={styles.hint}>
-                Precio final: ${(basePrice + form.priceModifier).toFixed(2)} MXN
-              </div>
-            </div>
-            <div className={styles.fieldWrap}>
-              <label className={styles.fieldLabel}>
-                Imagen de esta variante
-              </label>
-              <input
-                ref={fileRef}
-                className={styles.fieldInput}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    imageFile: e.target.files?.[0] ?? null,
-                  }))
-                }
-              />
-              <div className={styles.hint}>JPG, PNG o WebP · máx 5MB</div>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <div className={styles.formActions}>
             <button
               type="button"
               className={styles.btnGhost}
-              onClick={() => {
-                setShowForm(false);
-                setForm(blankVariant());
-              }}
-              disabled={saving}
+              onClick={resetNewForm}
+              disabled={savingNew}
             >
               Cancelar
             </button>
-            <button type="submit" className={styles.btnFill} disabled={saving}>
-              {saving ? "Guardando…" : "Guardar variante"}
+            <button
+              type="button"
+              className={styles.btnFill}
+              onClick={handleCreate}
+              disabled={savingNew}
+            >
+              {savingNew ? "Guardando…" : "Guardar variante"}
             </button>
           </div>
-        </form>
-      )}
-
-      {/* Lista vacía */}
-      {!loading && variants.length === 0 && !showForm && (
-        <div
-          style={{
-            color: "#999",
-            fontSize: 13,
-            textAlign: "center",
-            padding: "20px 0",
-          }}
-        >
-          Sin variantes todavía. Agrega la primera.
         </div>
       )}
 
-      {/* Lista de variantes */}
-      {!loading && variants.length > 0 && (
+      {/* ── Filtros ── */}
+      {variants.length > 0 && (
+        <div className={styles.filtersBar}>
+          <input
+            className={styles.fieldInput}
+            placeholder="Buscar por color…"
+            value={filterColor}
+            onChange={(e) => setFilterColor(e.target.value)}
+            style={{ minWidth: 160 }}
+          />
+          <select
+            className={styles.fieldInput}
+            value={filterSize}
+            onChange={(e) => setFilterSize(e.target.value)}
+            style={{ minWidth: 140 }}
+          >
+            <option value="">Todas las tallas</option>
+            {SIZES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          {(filterColor || filterSize) && (
+            <button
+              className={styles.btnGhost}
+              style={{ fontSize: 12 }}
+              onClick={() => {
+                setFilterColor("");
+                setFilterSize("");
+              }}
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Estados vacíos ── */}
+      {!loading && variants.length === 0 && !showNewForm && (
+        <div className={styles.emptyState}>
+          Sin variantes todavía. Agrega la primera.
+        </div>
+      )}
+      {!loading && groups.length === 0 && variants.length > 0 && (
+        <div className={styles.emptyState}>
+          No se encontraron variantes con esos filtros.
+        </div>
+      )}
+
+      {/* ── Lista de grupos de color ── */}
+      {!loading && groups.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {variants.map((v) => (
-            <div key={v.id}>
-              {/* Fila de variante */}
+          {groups.map((group) => {
+            const isEditing = editingGroup === group.color;
+            const usedSizes = isEditing
+              ? editSizes.map((e) => e.size)
+              : group.items.map((v) => v.size ?? "");
+            const availableSizes = SIZES.filter((s) => !usedSizes.includes(s));
+
+            return (
               <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "10px 14px",
-                  border: `0.5px solid ${editingId === v.id ? "#0a0a0a" : "#e8e8e8"}`,
-                  borderRadius: editingId === v.id ? "8px 8px 0 0" : 8,
-                  background: v.isActive ? "#fff" : "#fafafa",
-                  opacity: v.isActive ? 1 : 0.55,
-                }}
+                key={group.color}
+                className={styles.colorGroup}
+                style={{ borderColor: isEditing ? "#0a0a0a" : undefined }}
               >
-                {/* Color swatch */}
-                {v.colorHex && (
+                {/* ── Fila resumen ── */}
+                <div
+                  className={`${styles.groupRow} ${isEditing ? styles.groupRowOpen : ""}`}
+                  onClick={() =>
+                    isEditing ? setEditingGroup(null) : openEdit(group)
+                  }
+                >
                   <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      background: v.colorHex,
-                      border: "0.5px solid #e8e8e8",
-                      flexShrink: 0,
-                    }}
+                    className={styles.groupSwatch}
+                    style={{ background: group.colorHex }}
                   />
-                )}
 
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "#111" }}>
-                    {[v.color, v.size].filter(Boolean).join(" · ") ||
-                      "Sin nombre"}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
-                    Stock: {v.stock} · Precio: ${v.finalPrice.toFixed(2)} MXN
-                    {v.priceModifier !== 0 && (
-                      <span
-                        style={{
-                          color: v.priceModifier > 0 ? "#b45309" : "#15803d",
-                        }}
-                      >
-                        {" "}
-                        ({v.priceModifier > 0 ? "+" : ""}
-                        {v.priceModifier})
+                  <div className={styles.groupInfo}>
+                    <div className={styles.groupName}>
+                      {group.color}
+                      <span className={styles.stockBadge}>
+                        {totalStock(group.items)} Unidades Disponibles
                       </span>
-                    )}
-                    {!v.isActive && (
-                      <span style={{ color: "#ef4444", marginLeft: 8 }}>
-                        · Inactiva
-                      </span>
-                    )}
+                    </div>
+                    <div className={styles.groupPrice}>
+                      {priceRange(group.items, basePrice)} MXN
+                    </div>
+                    <div className={styles.groupSizes}>
+                      {group.items.map((v) => (
+                        <span
+                          key={v.id}
+                          className={`${styles.sizeChip} ${v.stock === 0 ? styles.sizeChipZero : ""}`}
+                        >
+                          <span className={styles.sizeChipLabel}>{v.size}</span>
+                          <span className={styles.sizeChipStock}>
+                            {v.stock}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Imagen preview */}
-                <div style={{ flexShrink: 0 }}>
-                  {v.imageUrl ? (
+                  {group.imageUrl ? (
                     <img
-                      src={v.imageUrl}
-                      alt={v.color ?? "variante"}
-                      style={{
-                        width: 44,
-                        height: 44,
-                        objectFit: "cover",
-                        borderRadius: 6,
-                        border: "0.5px solid #e8e8e8",
-                      }}
+                      src={group.imageUrl}
+                      alt={group.color}
+                      className={styles.groupThumb}
                     />
                   ) : (
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 6,
-                        border: "0.5px dashed #d4d4d4",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 10,
-                        color: "#bbb",
-                      }}
-                    >
-                      Sin img
-                    </div>
+                    <div className={styles.groupThumbEmpty}>Sin img</div>
                   )}
+
+                  <div
+                    className={styles.groupActions}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      className={styles.btnFill}
+                      style={{ fontSize: 12, padding: "5px 10px" }}
+                      onClick={() =>
+                        isEditing ? setEditingGroup(null) : openEdit(group)
+                      }
+                    >
+                      {isEditing ? "Cerrar" : "Editar"}
+                    </button>
+                    <button
+                      className={styles.deleteBtn}
+                      onClick={() => handleDeleteGroup(group)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
 
-                {/* Acciones */}
-                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                  {/* Editar */}
-                  <button
-                    onClick={() => {
-                      if (editingId === v.id) {
-                        setEditingId(null);
-                      } else {
-                        setEditingId(v.id);
-                        setEditForm(variantToForm(v));
-                        setShowForm(false);
-                      }
-                    }}
-                    style={{
-                      fontSize: 12,
-                      padding: "5px 10px",
-                      border: `0.5px solid ${editingId === v.id ? "#0a0a0a" : "#d4d4d4"}`,
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      color: editingId === v.id ? "#fff" : "#555",
-                      background: editingId === v.id ? "#0a0a0a" : "#fff",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {editingId === v.id ? "Cerrar" : "Editar"}
-                  </button>
+                {/* ── Panel de edición inline ── */}
+                {isEditing && (
+                  <div className={styles.editPanel}>
+                    <div className={styles.editPanelTitle}>
+                      Editando — {group.color}
+                    </div>
 
-                  {/* Subir imagen rápida (solo si no está en edición) */}
-                  {editingId !== v.id && (
-                    <label
-                      style={{
-                        fontSize: 12,
-                        padding: "5px 10px",
-                        border: "0.5px solid #d4d4d4",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        color: "#555",
-                        whiteSpace: "nowrap",
-                      }}
+                    <div className={styles.grid2} style={{ marginBottom: 12 }}>
+                      <div className={styles.fieldWrap}>
+                        <label className={styles.fieldLabel}>Color</label>
+                        <input
+                          className={styles.fieldInput}
+                          value={editColor}
+                          onChange={(e) => setEditColor(e.target.value)}
+                        />
+                      </div>
+                      <div className={styles.fieldWrap}>
+                        <label className={styles.fieldLabel}>Código HEX</label>
+                        <div className={styles.colorPickerWrap}>
+                          <input
+                            type="color"
+                            value={editHex}
+                            onChange={(e) => setEditHex(e.target.value)}
+                            className={styles.colorSwatch}
+                          />
+                          <input
+                            className={styles.fieldInput}
+                            value={editHex}
+                            onChange={(e) => setEditHex(e.target.value)}
+                            style={{ flex: 1 }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className={styles.fieldWrap}
+                      style={{ marginBottom: 12 }}
                     >
-                      {uploadingId === v.id
-                        ? "Subiendo…"
-                        : v.imageUrl
-                          ? "Cambiar img"
-                          : "Subir img"}
+                      <label className={styles.fieldLabel}>
+                        Nueva imagen (opcional)
+                      </label>
                       <input
+                        className={styles.fieldInput}
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
-                        style={{ display: "none" }}
-                        disabled={uploadingId === v.id}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleImageUpload(v.id, file);
-                        }}
+                        onChange={(e) =>
+                          setEditImageFile(e.target.files?.[0] ?? null)
+                        }
                       />
-                    </label>
-                  )}
+                      {group.imageUrl && !editImageFile && (
+                        <img
+                          src={group.imageUrl}
+                          alt=""
+                          className={styles.colorThumb}
+                          style={{ marginTop: 6, width: 48, height: 48 }}
+                        />
+                      )}
+                      {editImageFile && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "#15803d",
+                            marginTop: 4,
+                          }}
+                        >
+                          ✓ {editImageFile.name}
+                        </span>
+                      )}
+                    </div>
 
-                  {/* Eliminar */}
-                  <button
-                    onClick={() => handleDelete(v.id)}
-                    style={{
-                      fontSize: 12,
-                      padding: "5px 10px",
-                      border: "0.5px solid #fca5a5",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      color: "#b91c1c",
-                      background: "#fff",
-                    }}
-                  >
-                    Eliminar
-                  </button>
-                </div>
+                    {/* Tabla tallas */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div className={styles.sizeTableHeader}>
+                        <span style={{ width: 56 }}>Talla</span>
+                        <span style={{ flex: 1 }}>Stock</span>
+                        <span style={{ flex: 1 }}>Modificador (MXN)</span>
+                        <span style={{ flex: 1 }}>Precio final</span>
+                        <span style={{ width: 36 }} />
+                      </div>
+                      <div className={styles.sizesList}>
+                        {editSizes.map((entry) => {
+                          const variant = group.items.find(
+                            (v) => v.size === entry.size,
+                          );
+                          return (
+                            <div
+                              key={entry.size}
+                              className={`${styles.sizeRow} ${styles.sizeRowActive}`}
+                            >
+                              <span className={styles.sizeTableLabel}>
+                                {entry.size}
+                              </span>
+                              <input
+                                className={styles.stockInput}
+                                type="number"
+                                min={0}
+                                value={entry.stock}
+                                onChange={(e) =>
+                                  updateEditSizeEntry(
+                                    entry.size,
+                                    "stock",
+                                    Number(e.target.value),
+                                  )
+                                }
+                                style={{ flex: 1 }}
+                              />
+                              <input
+                                className={styles.stockInput}
+                                type="number"
+                                step={0.01}
+                                value={entry.priceModifier}
+                                onChange={(e) =>
+                                  updateEditSizeEntry(
+                                    entry.size,
+                                    "priceModifier",
+                                    Number(e.target.value),
+                                  )
+                                }
+                                style={{ flex: 1 }}
+                              />
+                              <span className={styles.sizeTablePrice}>
+                                ${(basePrice + entry.priceModifier).toFixed(2)}
+                              </span>
+                              {variant && (
+                                <button
+                                  className={styles.deleteBtn}
+                                  style={{
+                                    width: 36,
+                                    padding: "3px 6px",
+                                    fontSize: 11,
+                                  }}
+                                  onClick={() => handleDeleteSize(variant.id)}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Agregar tallas disponibles */}
+                    {availableSizes.length > 0 && (
+                      <div style={{ marginBottom: 14 }}>
+                        <label
+                          className={styles.fieldLabel}
+                          style={{ display: "block", marginBottom: 6 }}
+                        >
+                          Agregar talla
+                        </label>
+                        <div
+                          style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
+                        >
+                          {availableSizes.map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              className={styles.sizeBtn}
+                              onClick={() => handleAddSizeToEdit(group, s)}
+                              disabled={savingEdit}
+                            >
+                              + {s}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className={styles.formActions}>
+                      <button
+                        type="button"
+                        className={styles.btnGhost}
+                        onClick={() => setEditingGroup(null)}
+                        disabled={savingEdit}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.btnFill}
+                        onClick={() => handleSaveEdit(group)}
+                        disabled={savingEdit}
+                      >
+                        {savingEdit ? "Guardando…" : "Guardar cambios"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Formulario de edición inline */}
-              {editingId === v.id && renderEditForm(v)}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
