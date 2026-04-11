@@ -718,7 +718,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url("public/images/banners/Looks/look1.png");
+  background-image: url("/images/banners/Looks/look1.png");
   background-size: cover;
   background-position: center;
   filter: brightness(0.6);
