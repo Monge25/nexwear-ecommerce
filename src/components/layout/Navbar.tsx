@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import AuthModal from "../common/AuthModal";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import styles from "./Navbar.module.css";
@@ -289,6 +290,8 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled]     = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const navigate = useNavigate();
 
   const { itemCount, openCart } = useCart();
   const { count, openWishlist } = useWishlist();
@@ -309,52 +312,98 @@ const Navbar: React.FC = () => {
       {/* Top bar */}
       <div className={styles.topbar}>
         <div className={styles.topbarInner}>
-          <span>Envío gratis en pedidos +<em>$150</em></span>
+          <span>
+            Envío gratis en pedidos +<em>$150</em>
+          </span>
           <span className={styles.sep}>·</span>
-          <span>Código <em>NEXWEAR15</em> — 15% descuento</span>
+          <span>
+            Código <em>NEXWEAR15</em> — 15% descuento
+          </span>
           <span className={styles.sep}>·</span>
-          <span>Devoluciones gratis <em>30 días</em></span>
+          <span>
+            Devoluciones gratis <em>30 días</em>
+          </span>
         </div>
       </div>
 
       {/* Nav */}
       <nav className={`${styles.nav} ${scrolled ? styles.solid : ""}`}>
-        <Link to="/" className={styles.logo}>Nexwear</Link>
+        <Link to="/" className={styles.logo}>
+          Nexwear
+        </Link>
 
         <ul className={styles.links}>
-          <li><Link to="/productos?category=mujer">Mujer</Link></li>
-          <li><Link to="/productos?category=hombre">Hombre</Link></li>
-          <li><Link to="/productos">Colección</Link></li>
-          <li><Link to="/productos?category=exteriores">Exteriores</Link></li>
-          <li><Link to="/productos?isSale=true" className={styles.saleLink}>Rebajas</Link></li>
+          <li>
+            <Link to="/productos?category=mujer">Mujer</Link>
+          </li>
+          <li>
+            <Link to="/productos?category=hombre">Hombre</Link>
+          </li>
+          <li>
+            <Link to="/productos">Colección</Link>
+          </li>
+          <li>
+            <Link to="/productos?category=exteriores">Exteriores</Link>
+          </li>
+          <li>
+            <Link to="/productos?isSale=true" className={styles.saleLink}>
+              Rebajas
+            </Link>
+          </li>
         </ul>
 
         <div className={styles.actions}>
           {/* Buscar */}
-          <button className={styles.iconBtn} onClick={() => setSearchOpen(true)} aria-label="Buscar">
+          <button
+            className={styles.iconBtn}
+            onClick={() => setSearchOpen(true)}
+            aria-label="Buscar"
+          >
             <Search size={16} strokeWidth={1.5} />
           </button>
 
           {/* Perfil */}
-          <Link to={isAuthenticated ? ROUTES.PROFILE : ROUTES.LOGIN} className={styles.iconBtn} aria-label="Cuenta">
+          <button
+            className={styles.iconBtn}
+            aria-label="Cuenta"
+            onClick={() => {
+              if (isAuthenticated) {
+                navigate(ROUTES.PROFILE);
+              } else {
+                setAuthOpen(true);
+              }
+            }}
+          >
             <User size={16} strokeWidth={1.5} />
-          </Link>
+          </button>
 
           {/* Wishlist */}
-          <button className={styles.iconBtn} onClick={openWishlist} aria-label="Favoritos">
+          <button
+            className={styles.iconBtn}
+            onClick={openWishlist}
+            aria-label="Favoritos"
+          >
             <Heart size={17} strokeWidth={1.5} />
             {count > 0 && <span className={styles.badge}>{count}</span>}
           </button>
 
           {/* Admin */}
           {isAdmin && (
-            <Link to="/Admin" className={styles.iconBtn} aria-label="Dashboard Admin">
+            <Link
+              to="/Admin"
+              className={styles.iconBtn}
+              aria-label="Dashboard Admin"
+            >
               <ShieldCheck size={16} strokeWidth={1.5} />
             </Link>
           )}
 
           {/* Carrito */}
-          <button className={styles.cartBtn} onClick={openCart} aria-label="Bolsa">
+          <button
+            className={styles.cartBtn}
+            onClick={openCart}
+            aria-label="Bolsa"
+          >
             <ShoppingBag size={16} strokeWidth={1.5} />
             <span className={styles.cartLabel}>Bolsa</span>
             {itemCount > 0 && <span className={styles.badge}>{itemCount}</span>}
@@ -363,6 +412,12 @@ const Navbar: React.FC = () => {
       </nav>
 
       {searchOpen && <SearchOverlay onClose={closeSearch} />}
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        reason="Inicia sesión para acceder a tu cuenta"
+      />
     </>
   );
 };

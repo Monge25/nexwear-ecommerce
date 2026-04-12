@@ -941,5 +941,104 @@
   .modalActions button {
     width: 100%;
   }
+}
 
+/* ── Nuevas clases para el rediseño ── */
+
+.tabHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--g100);
+}
+
+.tabHeader .contentTitle {
+  margin-bottom: 0;
+}
+
+.countLabel {
+  font-size: 11px;
+  color: var(--g400);
+  letter-spacing: .08em;
+}
+
+.navIcon {
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: .5;
+  flex-shrink: 0;
+}
+
+.navItemOn .navIcon {
+  opacity: 1;
+}
+
+/* Sidebar footer con logout */
+.sidebarFoot {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--g100);
+}
+
+.logoutBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--g400);
+  cursor: pointer;
+  transition: all .2s;
+  letter-spacing: .04em;
+  border-radius: 2px;
+}
+
+.logoutBtn:hover {
+  background: rgba(168, 50, 50, .06);
+  color: var(--rojo);
+}
+
+/* Add address button */
+.addBtn {
+  padding: 8px 18px;
+  background: none;
+  border: 1px solid var(--g200);
+  font-family: var(--font-body);
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all .2s;
+  color: var(--negro);
+  white-space: nowrap;
+}
+
+.addBtn:hover {
+  background: var(--negro);
+  color: var(--blanco);
+  border-color: var(--negro);
+}
+
+/* Empty btn */
+.emptyBtn {
+  font-size: 10.5px;
+  color: var(--dorado);
+  letter-spacing: .1em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-body);
+}
+
+.emptyBtn:hover {
+  text-decoration: underline;
 }

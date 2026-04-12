@@ -1547,56 +1547,116 @@ const ReviewsSection: React.FC<{
   token: string;
   show: (msg: string, type?: "success" | "error") => void;
 }> = ({ token, show }) => {
-
   const [page, setPage] = useState(1);
+  const [tab, setTab] = useState<"pending" | "all">("pending");
 
-  const fetchReviews = useCallback(
-    () => apiCall<Paginated<any>>(`/Reviews?page=${page}&limit=20`, token),
-    [page, token]
-  );
-
-  const { data, loading, refetch } = useFetch(fetchReviews, [page, token]);
-
-  const reviews =
-    (data as any)?.data ?? (Array.isArray(data) ? data : []);
-
-  const total =
-    (data as any)?.total ?? reviews.length;
-
-  const approveReview = async (id: string) => {
-    try {
-      await apiCall(`/Reviews/${id}/approve`, token, {
-        method: "PATCH"
-      });
-
-      show("Reseña aprobada");
-      refetch();
-
-    } catch (e: any) {
-      show("Error: " + e.message, "error");
+  // Intenta /pending primero; si falla usa filtro isApproved=false
+  const fetchReviews = useCallback(() => {
+    if (tab === "pending") {
+      return apiCall<any>(
+        `/Reviews/pending?page=${page}&limit=20`,
+        token,
+      ).catch(() =>
+        apiCall<any>(`/Reviews?page=${page}&limit=20&isApproved=false`, token),
+      );
     }
+    return apiCall<any>(`/Reviews?page=${page}&limit=20`, token);
+  }, [page, tab, token]);
+
+  const { data, loading, refetch } = useFetch(fetchReviews, [page, tab, token]);
+
+  const reviews: any[] =
+    (data as any)?.data ??
+    (data as any)?.items ??
+    (Array.isArray(data) ? data : []);
+  const total: number =
+    (data as any)?.total ?? (data as any)?.totalCount ?? reviews.length;
+
+  const moderateReview = async (id: string, approve: boolean) => {
+    // Intenta con { isApproved }, si falla intenta con { status }
+    try {
+      await apiCall(`/Reviews/${id}/moderate`, token, {
+        method: "PUT",
+        body: JSON.stringify({ isApproved: approve }),
+      });
+    } catch {
+      try {
+        await apiCall(`/Reviews/${id}/moderate`, token, {
+          method: "PUT",
+          body: JSON.stringify({ status: approve ? "approved" : "rejected" }),
+        });
+      } catch (e: any) {
+        show("Error al moderar: " + e.message, "error");
+        return;
+      }
+    }
+    show(approve ? "Reseña aprobada ✓" : "Reseña rechazada");
+    refetch();
   };
 
   const deleteReview = async (id: string) => {
-    if (!confirm("¿Eliminar esta reseña?")) return;
-
+    if (!confirm("¿Eliminar esta reseña? No se puede deshacer.")) return;
     try {
-      await apiCall(`/Reviews/${id}`, token, {
-        method: "DELETE"
-      });
-
+      await apiCall(`/Reviews/${id}`, token, { method: "DELETE" });
       show("Reseña eliminada");
       refetch();
-
     } catch (e: any) {
       show("Error: " + e.message, "error");
     }
   };
+
+  const TAB_STYLE = (active: boolean): React.CSSProperties => ({
+    padding: "6px 16px",
+    border: "none",
+    borderRadius: 6,
+    fontSize: 12,
+    fontFamily: "inherit",
+    cursor: "pointer",
+    fontWeight: active ? 500 : 400,
+    background: active ? "#fff" : "transparent",
+    color: active ? "#0a0a0a" : "#6e6e6e",
+    boxShadow: active ? "0 1px 3px rgba(0,0,0,.08)" : "none",
+    transition: "all .15s",
+  });
 
   return (
     <>
       <div className={styles.tabHeader}>
         <h1 className={styles.pageTitle}>Reseñas</h1>
+        <span style={{ fontSize: 12, color: "#9a9a9a" }}>
+          {total} registros
+        </span>
+      </div>
+
+      {/* Tabs Pendientes / Todas */}
+      <div
+        style={{
+          display: "flex",
+          gap: 2,
+          background: "#f0f0f0",
+          borderRadius: 8,
+          padding: 3,
+          width: "fit-content",
+          marginBottom: 16,
+        }}
+      >
+        {(
+          [
+            ["pending", "⏳ Pendientes"],
+            ["all", "Todas"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            style={TAB_STYLE(tab === key)}
+            onClick={() => {
+              setTab(key);
+              setPage(1);
+            }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -1611,87 +1671,124 @@ const ReviewsSection: React.FC<{
                     <th>Producto</th>
                     <th>Usuario</th>
                     <th>Rating</th>
+                    <th>Título</th>
                     <th>Comentario</th>
                     <th>Estado</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
-
                 <tbody>
                   {reviews.length ? (
                     reviews.map((r: any) => (
                       <tr key={r.id}>
                         <td>
                           <div className={styles.prodCell}>
-                            <img
-                              src={r.product?.imageUrl}
-                              className={styles.prodImg}
-                            />
-                            <span>{r.product?.name}</span>
+                            {r.product?.imageUrl && (
+                              <img
+                                src={r.product.imageUrl}
+                                className={styles.prodImg}
+                                alt=""
+                              />
+                            )}
+                            <span style={{ fontSize: 12 }}>
+                              {r.product?.name ?? "—"}
+                            </span>
                           </div>
                         </td>
-
+                        <td style={{ fontSize: 12 }}>
+                          {r.user?.firstName ?? r.userName ?? "—"}{" "}
+                          {r.user?.lastName ?? ""}
+                        </td>
                         <td>
-                          {r.user?.firstName} {r.user?.lastName}
+                          <span
+                            style={{
+                              color: "var(--dorado, #c9a84c)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {"★".repeat(r.rating)}
+                            {"☆".repeat(5 - r.rating)}
+                          </span>
                         </td>
-
-                        <td>
-                          ⭐ {r.rating}
+                        <td
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 500,
+                            maxWidth: 160,
+                          }}
+                        >
+                          {r.title ?? "—"}
                         </td>
-
-                        <td style={{ maxWidth: 280 }}>
-                          {r.comment}
+                        <td
+                          style={{ fontSize: 12, color: "#555", maxWidth: 260 }}
+                        >
+                          <span title={r.comment ?? r.body ?? ""}>
+                            {(r.comment ?? r.body ?? "").slice(0, 100)}
+                            {(r.comment ?? r.body ?? "").length > 100
+                              ? "…"
+                              : ""}
+                          </span>
                         </td>
-
                         <td>
                           {r.isApproved ? (
-                            <span className={`${styles.badge} ${styles.badgeGreen}`}>
+                            <span
+                              className={`${styles.badge} ${styles.badgeGreen}`}
+                            >
                               Aprobada
                             </span>
                           ) : (
-                            <span className={`${styles.badge} ${styles.badgeGray}`}>
+                            <span
+                              className={`${styles.badge} ${styles.badgeGray}`}
+                            >
                               Pendiente
                             </span>
                           )}
                         </td>
-
                         <td>
                           <div className={styles.actionBtns}>
-
                             {!r.isApproved && (
                               <button
                                 className={styles.btnEdit}
-                                onClick={() => approveReview(r.id)}
+                                onClick={() =>
+                                  moderateReview(String(r.id), true)
+                                }
                               >
-                                Aprobar
+                                ✓ Aprobar
                               </button>
                             )}
-
+                            {r.isApproved && (
+                              <button
+                                className={styles.btnGhost}
+                                onClick={() =>
+                                  moderateReview(String(r.id), false)
+                                }
+                              >
+                                Rechazar
+                              </button>
+                            )}
                             <button
                               className={styles.btnDanger}
-                              onClick={() => deleteReview(r.id)}
+                              onClick={() => deleteReview(String(r.id))}
                             >
                               Eliminar
                             </button>
-
                           </div>
                         </td>
-
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className={styles.empty}>
-                        Sin reseñas
+                      <td colSpan={7} className={styles.empty}>
+                        {tab === "pending"
+                          ? "No hay reseñas pendientes ✓"
+                          : "Sin reseñas"}
                       </td>
                     </tr>
                   )}
                 </tbody>
-
               </table>
             </div>
           </div>
-
           <Pagination
             page={page}
             total={total}

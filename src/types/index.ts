@@ -115,6 +115,7 @@ export interface Review {
   verified: boolean
   helpful: number
   createdAt: string
+  photos?: string[]
 }
 
 export interface ReviewsResponse {
@@ -127,7 +128,7 @@ export interface ReviewsResponse {
 export interface CreateReviewData {
   rating: number
   title: string
-  body: string
+  comment: string
 }
 
 // ─── Admin ───────────────────────────────────────────────────────────────────

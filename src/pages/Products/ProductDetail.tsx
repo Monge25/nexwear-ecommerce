@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import productService from "@/services/productService";
 import { useFetch } from "@/hooks/useFetch";
@@ -81,6 +81,8 @@ const ProductDetail: React.FC = () => {
   const [authOpen, setAuthOpen]       = useState(false);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [copied, setCopied]           = useState(false);
+
+  const reviewsRef = useRef<HTMLDivElement>(null)
 
   const { data: product, loading } = useFetch(
     () => productService.getProductBySlug(slug!),
@@ -343,10 +345,47 @@ const ProductDetail: React.FC = () => {
             />
           </div>
 
-          <Rating
-            value={product.rating}
-            count={product.reviewCount}
-            size="md"
+          {/* Rating clickeable → scroll a reseñas */}
+          <button
+            onClick={() =>
+              reviewsRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              })
+            }
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              marginBottom: 28, // ← separación antes del color
+            }}
+          >
+            <Rating
+              value={product.rating}
+              count={product.reviewCount}
+              size="md"
+            />
+            {product.reviewCount > 0 && (
+              <span
+                style={{
+                  fontSize: 10,
+                  color: "var(--dorado)",
+                  letterSpacing: "0.1em",
+                  textDecoration: "underline",
+                }}
+              >
+                Ver reseñas
+              </span>
+            )}
+          </button>
+
+          {/* Separador visual */}
+          <div
+            style={{ height: 1, background: "var(--g100)", marginBottom: 22 }}
           />
 
           {/* ── Selector de color ── */}
@@ -652,10 +691,12 @@ const ProductDetail: React.FC = () => {
       )}
 
       <div
+        ref={reviewsRef}
         style={{
           maxWidth: "var(--max-w)",
           margin: "0 auto",
           padding: "0 52px",
+          scrollMarginTop: "calc(var(--nav-h) + 20px)", // ← offset del navbar
         }}
       >
         <ReviewSection productId={product.id} />

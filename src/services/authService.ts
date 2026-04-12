@@ -45,25 +45,23 @@ const authService = {
   },
 
   async getMe(): Promise<User> {
-    const { data } = await apiClient.get<User>("/auth/me")
+    const { data } = await apiClient.get<User>("/Users/profile")  // era /auth/me
     return data
   },
 
-  async updateProfile(updates: Partial<User>): Promise<User> {
-    const { data } = await apiClient.put<User>("/auth/me", updates)
-    return data
+  async updateProfile(updates: Partial<User>): Promise<void> {
+    await apiClient.put("/Users/profile", updates)  // era /auth/me
   },
 
   async changePassword(current: string, next: string): Promise<void> {
-    await apiClient.post("/auth/change-password", {
+    await apiClient.post("/Users/change-password", {  // era /auth/change-password
       currentPassword: current,
       newPassword: next,
     })
   },
-
-  async requestPasswordReset(email: string): Promise<void> {
-    await apiClient.post("/auth/forgot-password", { email })
-  },
+    async requestPasswordReset(email: string): Promise<void> {
+      await apiClient.post("/auth/forgot-password", { email })
+    },
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
     await apiClient.post("/auth/reset-password", {
@@ -75,33 +73,28 @@ const authService = {
 // ── Addresses ─────────────────────────────────────────
 
 async getAddresses() {
-  const { data } = await apiClient.get("/users/addresses")
+  const { data } = await apiClient.get("/Addresses")
   return data
 },
 
 async addAddress(address: any) {
-  const { data } = await apiClient.post(
-    "/users/addresses",
-    address
-  )
+  const { data } = await apiClient.post("/Addresses", address)
   return data
 },
 
-async updateAddress(
-  id: string,
-  address: any
-) {
-  const { data } = await apiClient.put(
-    `/users/addresses/${id}`,
-    address
-  )
+async updateAddress(id: string, address: any) {
+  const { data } = await apiClient.put(`/Addresses/${id}`, address)
+  return data
+},
+
+async setDefaultAddress(id: string) {
+  const { data } = await apiClient.put(`/Addresses/${id}/default`, {})
   return data
 },
 
 async deleteAddress(id: string) {
-  await apiClient.delete(
-    `/users/addresses/${id}`
-  )
+  await apiClient.delete(`/Addresses/${id}`)
 },
+
 }
 export default authService

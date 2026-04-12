@@ -107,10 +107,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, reason, onSuccess 
               Iniciar Sesión
             </button>
             <p className={styles.orLine}><span>o continúa con</span></p>
-            <button type="button" className={styles.social} onClick={() => window.location.href = '/auth/google'}>
+            {/* <button type="button" className={styles.social} onClick={() => window.location.href = '/auth/google'}>
               <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.7 33 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3L37 10.1C33.4 6.9 28.9 5 24 5 13.5 5 5 13.5 5 24s8.5 19 19 19c10.5 0 19-8.5 19-19 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 19 13 24 13c3.1 0 5.8 1.1 7.9 3L37 10.1C33.4 6.9 28.9 5 24 5c-7.7 0-14.3 4.4-17.7 9.7z"/><path fill="#4CAF50" d="M24 43c4.9 0 9.4-1.9 12.8-4.9l-5.9-5c-2 1.4-4.4 2.1-6.9 2.1-5.3 0-9.7-3-11.3-7.4l-6.6 5.1C9.6 38.5 16.3 43 24 43z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.7 2.1-2 3.9-3.7 5.1l5.9 5C40.4 34.8 44 29.8 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
               Google
-            </button>
+            </button> */}
           </form>
         )}
 
