@@ -1,44 +1,38 @@
 import apiClient from './apiClient'
-import type { Cart, CartItem, Size, ProductColor } from '@/types'
+
+interface AddItemPayload {
+  productId: string;
+  variantId: string;
+  quantity: number;
+}
 
 const cartService = {
-  async getCart(): Promise<Cart> {
-    const { data } = await apiClient.get<Cart>('/cart')
+  async getCart() {
+    const { data } = await apiClient.get('/Cart')
     return data
   },
 
-  async addItem(
-    productId: number,
-    quantity: number,
-    size: Size,
-    color: ProductColor,
-  ): Promise<Cart> {
-    const { data } = await apiClient.post<Cart>('/cart/items', {
-      productId,
-      quantity,
-      size,
-      color,
-    })
+async addItem(payload: AddItemPayload) {
+  try {
+    const { data } = await apiClient.post('/Cart/items', payload)
+    console.log(" Item agregado al carrito backend:", data)
+    return data
+  } catch (err: any) {
+    console.error(" Error agregando al carrito backend:", err.response?.data)
+    throw err
+  }
+},
+  async updateItem(cartItemId: string, quantity: number) {
+    const { data } = await apiClient.put(`/Cart/items/${cartItemId}`, { quantity })
     return data
   },
 
-  async updateItem(itemId: number, quantity: number): Promise<Cart> {
-    const { data } = await apiClient.put<Cart>(`/cart/items/${itemId}`, { quantity })
-    return data
+  async removeItem(cartItemId: string) {
+    await apiClient.delete(`/Cart/items/${cartItemId}`)
   },
 
-  async removeItem(itemId: number): Promise<Cart> {
-    const { data } = await apiClient.delete<Cart>(`/cart/items/${itemId}`)
-    return data
-  },
-
-  async clearCart(): Promise<void> {
-    await apiClient.delete('/cart')
-  },
-
-  async applyPromo(code: string): Promise<{ discount: number; message: string }> {
-    const { data } = await apiClient.post('/cart/promo', { code })
-    return data
+  async clearCart() {
+    await apiClient.delete('/Cart')
   },
 }
 

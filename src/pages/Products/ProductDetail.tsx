@@ -16,15 +16,24 @@ import type { Size, ProductColor, ProductVariant } from "@/types";
 import styles from "./ProductDetail.module.css";
 
 // ── Acordeón ──────────────────────────────────────────────────
-const Accordion: React.FC<{ title: string; children: React.ReactNode; defaultOpen?: boolean }> = ({
-  title, children, defaultOpen = false,
-}) => {
+const Accordion: React.FC<{
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}> = ({ title, children, defaultOpen = false }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className={styles.accordion}>
-      <button className={styles.accordionBtn} onClick={() => setOpen((v) => !v)}>
+      <button
+        className={styles.accordionBtn}
+        onClick={() => setOpen((v) => !v)}
+      >
         <span>{title}</span>
-        <span className={`${styles.accordionIcon} ${open ? styles.accordionIconOpen : ""}`}>+</span>
+        <span
+          className={`${styles.accordionIcon} ${open ? styles.accordionIconOpen : ""}`}
+        >
+          +
+        </span>
       </button>
       {open && <div className={styles.accordionBody}>{children}</div>}
     </div>
@@ -37,22 +46,34 @@ const SizeGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
     <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
       <div className={styles.modalHeader}>
         <h3 className={styles.modalTitle}>Guía de Tallas</h3>
-        <button className={styles.modalClose} onClick={onClose}>✕</button>
+        <button className={styles.modalClose} onClick={onClose}>
+          ✕
+        </button>
       </div>
       <table className={styles.sizeTable}>
         <thead>
-          <tr><th>Talla</th><th>Pecho (cm)</th><th>Cintura (cm)</th><th>Cadera (cm)</th></tr>
+          <tr>
+            <th>Talla</th>
+            <th>Pecho (cm)</th>
+            <th>Cintura (cm)</th>
+            <th>Cadera (cm)</th>
+          </tr>
         </thead>
         <tbody>
           {[
             ["XS", "80–84", "60–64", "86–90"],
-            ["S",  "84–88", "64–68", "90–94"],
-            ["M",  "88–92", "68–72", "94–98"],
-            ["L",  "92–96", "72–76", "98–102"],
-            ["XL", "96–100","76–80","102–106"],
-            ["XXL","100–104","80–84","106–110"],
+            ["S", "84–88", "64–68", "90–94"],
+            ["M", "88–92", "68–72", "94–98"],
+            ["L", "92–96", "72–76", "98–102"],
+            ["XL", "96–100", "76–80", "102–106"],
+            ["XXL", "100–104", "80–84", "106–110"],
           ].map(([t, p, c, ca]) => (
-            <tr key={t}><td>{t}</td><td>{p}</td><td>{c}</td><td>{ca}</td></tr>
+            <tr key={t}>
+              <td>{t}</td>
+              <td>{p}</td>
+              <td>{c}</td>
+              <td>{ca}</td>
+            </tr>
           ))}
         </tbody>
       </table>
@@ -77,23 +98,25 @@ const ProductDetail: React.FC = () => {
   const [activeSize, setActiveSize] = useState<Size | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [sizeError, setSizeError] = useState(false);
-  const [adding, setAdding]           = useState(false);
-  const [authOpen, setAuthOpen]       = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
-  const [copied, setCopied]           = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const reviewsRef = useRef<HTMLDivElement>(null)
+  const reviewsRef = useRef<HTMLDivElement>(null);
 
   const { data: product, loading } = useFetch(
     () => productService.getProductBySlug(slug!),
     [slug],
   );
   const { data: rawVariants = [] } = useFetch(
-    () => product ? productService.getVariants(product.id) : Promise.resolve([]),
+    () =>
+      product ? productService.getVariants(product.id) : Promise.resolve([]),
     [product?.id],
   );
   const { data: related } = useFetch(
-    () => product ? productService.getRelated(product.id) : Promise.resolve([]),
+    () =>
+      product ? productService.getRelated(product.id) : Promise.resolve([]),
     [product?.id],
   );
 
@@ -108,8 +131,11 @@ const ProductDetail: React.FC = () => {
     return map;
   }, [rawVariants]);
 
-  const uniqueColors = useMemo(() => Array.from(colorGroups.keys()), [colorGroups]);
-  const hasVariants  = uniqueColors.length > 0;
+  const uniqueColors = useMemo(
+    () => Array.from(colorGroups.keys()),
+    [colorGroups],
+  );
+  const hasVariants = uniqueColors.length > 0;
 
   if (loading) return <Loader fullPage />;
   if (!product)
@@ -134,9 +160,7 @@ const ProductDetail: React.FC = () => {
 
   const displayImage = colorVariants[0]?.imageUrl || product.imageUrl || "";
   const selectedVariant = matchedVariant ?? colorVariants[0];
-
   const displayPrice = selectedVariant?.finalPrice ?? product.price;
-
   const displayOriginalPrice =
     selectedVariant &&
     selectedVariant.finalPrice &&
@@ -179,12 +203,8 @@ const ProductDetail: React.FC = () => {
       return;
     }
 
-    // ❌ Sin stock
-    if (displayStock <= 0) {
-      return;
-    }
+    if (displayStock <= 0) return;
 
-    // ❌ Cantidad mayor al stock
     if (quantity > displayStock) {
       setQuantity(displayStock);
       return;
@@ -204,16 +224,24 @@ const ProductDetail: React.FC = () => {
 
     const size: Size = activeSize ?? (displaySizes[0] as Size) ?? "M";
 
+    // Buscar la variante correcta
+    const variant = rawVariants?.find(
+      (v) => v.color === color.name && v.size === size,
+    );
+
     addItem(
       {
         ...product,
         price: displayPrice,
         imageUrl: displayImage,
         stock: displayStock,
+        // Pasar variants completo para que CartContext encuentre el variantId
+        variants: rawVariants ?? [],
       },
       quantity,
       size,
       color,
+      variant?.imageUrl,
     );
 
     setTimeout(() => setAdding(false), 600);
@@ -229,7 +257,6 @@ const ProductDetail: React.FC = () => {
     }
   };
 
-  // Breadcrumb clickeable
   const breadcrumbs = [
     { label: "Inicio", path: "/" },
     {
@@ -250,10 +277,8 @@ const ProductDetail: React.FC = () => {
             style={{ background: selectedHex }}
             onMouseMove={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
-
               const x = e.clientX - rect.left;
               const y = e.clientY - rect.top;
-
               setZoomStyle({
                 left: x,
                 top: y,
@@ -270,11 +295,8 @@ const ProductDetail: React.FC = () => {
                   alt={product.name}
                   className={styles.productImg}
                 />
-
                 <div
-                  className={`${styles.zoom} ${
-                    zoomVisible ? styles.zoomVisible : ""
-                  }`}
+                  className={`${styles.zoom} ${zoomVisible ? styles.zoomVisible : ""}`}
                   style={{
                     backgroundImage: `url(${displayImage})`,
                     ...zoomStyle,
@@ -287,7 +309,6 @@ const ProductDetail: React.FC = () => {
 
         {/* ── Info ── */}
         <div className={styles.info}>
-          {/* Breadcrumb clickeable */}
           <nav className={styles.breadcrumbs}>
             {breadcrumbs.map((b, i) => (
               <span key={i}>
@@ -310,7 +331,6 @@ const ProductDetail: React.FC = () => {
 
           <div className={styles.nameRow}>
             <h1 className={styles.name}>{product.name}</h1>
-            {/* Botón compartir */}
             <button
               className={styles.shareBtn}
               onClick={handleShare}
@@ -345,7 +365,6 @@ const ProductDetail: React.FC = () => {
             />
           </div>
 
-          {/* Rating clickeable → scroll a reseñas */}
           <button
             onClick={() =>
               reviewsRef.current?.scrollIntoView({
@@ -361,7 +380,7 @@ const ProductDetail: React.FC = () => {
               border: "none",
               cursor: "pointer",
               padding: 0,
-              marginBottom: 28, // ← separación antes del color
+              marginBottom: 28,
             }}
           >
             <Rating
@@ -383,7 +402,6 @@ const ProductDetail: React.FC = () => {
             )}
           </button>
 
-          {/* Separador visual */}
           <div
             style={{ height: 1, background: "var(--g100)", marginBottom: 22 }}
           />
@@ -478,9 +496,7 @@ const ProductDetail: React.FC = () => {
               >
                 −
               </button>
-
               <span className={styles.qtyNum}>{quantity}</span>
-
               <button
                 className={styles.qtyBtn}
                 onClick={() =>
@@ -493,19 +509,15 @@ const ProductDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Stock bajo */}
           {displayStock > 0 && displayStock <= 5 && (
             <p className={styles.lowStock}>
               ¡Solo quedan {displayStock} unidades!
             </p>
           )}
-
-          {/* Sin stock */}
           {displayStock <= 0 && (
             <p className={styles.outOfStock}>Producto agotado</p>
           )}
 
-          {/* Badges de confianza */}
           <div className={styles.trustBadges}>
             <span className={styles.trustBadge}>
               <svg
@@ -552,7 +564,6 @@ const ProductDetail: React.FC = () => {
             </span>
           </div>
 
-          {/* CTAs */}
           <div className={styles.ctas}>
             <Button
               variant="fill"
@@ -579,7 +590,6 @@ const ProductDetail: React.FC = () => {
             </button>
           </div>
 
-          {/* Envío */}
           <div className={styles.shippingBox}>
             <svg
               width="18"
@@ -600,7 +610,6 @@ const ProductDetail: React.FC = () => {
             </p>
           </div>
 
-          {/* ── Acordeón de detalles ── */}
           <div className={styles.accordions}>
             <Accordion title="Descripción" defaultOpen>
               <p className={styles.accordionText}>
@@ -656,7 +665,7 @@ const ProductDetail: React.FC = () => {
               <Accordion title="Disponibilidad">
                 <p className={styles.accordionText}>
                   {displayStock <= 5
-                    ? `⚠️ Quedan pocas unidades — solo ${displayStock} en stock.`
+                    ? ` Quedan pocas unidades — solo ${displayStock} en stock.`
                     : `✓ En stock — ${displayStock} unidades disponibles.`}
                 </p>
               </Accordion>
@@ -665,7 +674,6 @@ const ProductDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Relacionados */}
       {relatedProducts.length > 0 && (
         <section className={styles.related}>
           <h2 className={styles.relTitle}>
@@ -678,7 +686,7 @@ const ProductDetail: React.FC = () => {
                 product={p}
                 onAddToCart={(prod) =>
                   addItem(
-                    prod,
+                    { ...prod, variants: rawVariants ?? [] },
                     1,
                     (prod.sizes?.[0] as Size) ?? "M",
                     prod.colors?.[0] ?? { name: "Negro", hex: "#0a0a0a" },
@@ -696,7 +704,7 @@ const ProductDetail: React.FC = () => {
           maxWidth: "var(--max-w)",
           margin: "0 auto",
           padding: "0 52px",
-          scrollMarginTop: "calc(var(--nav-h) + 20px)", // ← offset del navbar
+          scrollMarginTop: "calc(var(--nav-h) + 20px)",
         }}
       >
         <ReviewSection productId={product.id} />

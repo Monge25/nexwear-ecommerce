@@ -140,18 +140,21 @@ export interface AdminStats {
   revenueByMonth: { month: string; revenue: number }[]
   topProducts: { productId: number; productName: string; sold: number; revenue: number }[]
   newUsers: { date: string; count: number }[]
-  ordersByStatus: Record<OrderStatus, number>
+  ordersByStatus: Record<string, number>
   recentOrders: Order[]
 }
 
 export interface Address {
   id: number
-  label: string
+  label?: string
+  alias?: string
   street: string
+  interior?: string
   city: string
   state: string
   zipCode: string
   country: string
+  phone?: string
   isDefault: boolean
 }
 
@@ -179,27 +182,31 @@ export interface AuthResponse {
 // ─── Order ───────────────────────────────────────────────────────────────────
 export interface Order {
   id: string
-  userId: number
-  items: OrderItem[]
-  subtotal: number
-  shipping: number
+  orderNumber: string
+  status: string
   total: number
-  status: OrderStatus
-  shippingAddress: Address
+  subtotal?: number
+  shipping?: number
+  shippingAddress: string 
   paymentMethod: string
+  paypalOrderId?: string
   createdAt: string
-  updatedAt: string
+  paidAt?: string
   trackingNumber?: string
+  items: OrderItem[]
 }
 
 export interface OrderItem {
-  productId: number
+  id: string
+  productId: string
+  variantId: string
   productName: string
-  quantity: number
-  price: number
-  size: Size
-  color: string
+  variantColor: string
+  variantSize: string
   imageUrl: string
+  quantity: number
+  unitPrice: number
+  total: number
 }
 
 export type OrderStatus =

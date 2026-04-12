@@ -1,43 +1,32 @@
-import apiClient from "./apiClient"
-import type { Order } from "@/types"
+import apiClient from "./apiClient";
+import type { Order } from "@/types";
 
-// ── Crear Orden ─────────────────────────────────────
-const createOrder = async (
-  data: any
-): Promise<Order> => {
-
-  const res = await apiClient.post(
-    "/orders",
-    data
-  )
-
-  return res.data
+interface CheckoutPayload {
+  token: string;
+  shippingAddress: string;
 }
 
-// ── Obtener órdenes del usuario ─────────────────────
-const getOrders = async (): Promise<Order[]> => {
+const orderService = {
+async checkout(data: CheckoutPayload): Promise<Order> {
+  try {
+    const res = await apiClient.post("/Orders/checkout", data);
+    return res.data;
+  } catch (error: any) {
+    console.log("Status:", error.response?.status);
+    console.log("Response body:", JSON.stringify(error.response?.data, null, 2));
+    console.log("Payload enviado:", JSON.stringify(data, null, 2));
+    throw error;
+  }
+},
+  async getOrders(): Promise<Order[]> {
+    const res = await apiClient.get("/Orders");
+    return res.data;
+  },
 
-  const res = await apiClient.get(
-    "/orders"
-  )
+  async getOrderById(id: string): Promise<Order> {
+    const res = await apiClient.get(`/Orders/${id}`);
+    return res.data;
+  },
+};
 
-  return res.data
-}
-
-// ── Obtener orden por ID (para detalle) ─────────────
-const getOrderById = async (
-  id: string
-): Promise<Order> => {
-
-  const res = await apiClient.get(
-    `/orders/${id}`
-  )
-
-  return res.data
-}
-
-export default {
-  createOrder,
-  getOrders,
-  getOrderById
-}
+export default orderService;

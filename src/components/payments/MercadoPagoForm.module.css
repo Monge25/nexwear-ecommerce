@@ -1,0 +1,168 @@
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.loading {
+    text-align: center;
+    padding: 32px;
+    color: var(--g400);
+    font-size: 13px;
+    letter-spacing: .08em;
+}
+
+.label {
+    display: block;
+    font-size: 9.5px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--g400);
+    margin-bottom: 4px;
+}
+
+.mpInput {
+    border: 1px solid var(--g200);
+    padding: 4px 10px;
+    background: var(--g100);
+    transition: border-color .2s;
+    height: 34px; 
+    display: flex;
+    align-items: center;
+}
+
+.mpInput iframe {
+    height: 18px !important;
+    font-size: 13px !important;
+}
+
+.mpInput {
+    height: 34px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+}
+
+.mpInput {
+    font-size: 13px;
+    letter-spacing: normal;
+}
+
+.mpInput > div {
+    width: 100%;
+}
+
+.mpInput:focus-within {
+    border-color: var(--negro);
+    background: white;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+}
+
+.input {
+    height: 34px;
+    padding: 0 13px;
+    border: 1px solid var(--g200);
+    background: var(--g100);
+    font-family: var(--font-body);
+    font-size: 13px;
+    outline: none;
+    transition: border-color .2s;
+    text-transform: uppercase;
+}
+
+.input:focus {
+    border-color: var(--negro);
+    background: white;
+}
+
+.testCards {
+    background: #f9f6ef;
+    border: 1px solid #e8dfc8;
+    padding: 12px 14px;
+    border-radius: 4px;
+}
+
+.testTitle {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: #8a6520;
+    margin-bottom: 6px;
+    letter-spacing: .04em;
+}
+
+.testCard {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 3px;
+}
+
+.error {
+    font-size: 12px;
+    color: var(--rojo);
+    background: rgba(168, 50, 50, .06);
+    padding: 10px 14px;
+}
+
+.btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--negro);
+    color: var(--blanco);
+    border: none;
+    font-family: var(--font-body);
+    font-size: 11px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background .2s;
+    margin-top: 4px;
+}
+
+.btn:hover:not(:disabled) {
+    background: var(--dorado);
+}
+
+.btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.spinnerIcon {
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid rgba(255, 255, 255, .3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    display: inline-block;
+}
+
+.secure {
+    text-align: center;
+    font-size: 10.5px;
+    color: var(--g400);
+    letter-spacing: .06em;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

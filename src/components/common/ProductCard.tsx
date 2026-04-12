@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Product, ProductVariant } from "@/types";
+import type { Product, ProductVariant, Size } from "@/types";
 import Price from "./Price";
 import AuthModal from "./AuthModal";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,6 +42,7 @@ interface QuickAddModalProps {
     imageUrl: string;
     variants: ProductVariant[];
   }[];
+  allVariants: ProductVariant[]; // todas las variantes para CartContext
   onClose: () => void;
   onConfirm: (
     colorName: string,
@@ -49,12 +50,14 @@ interface QuickAddModalProps {
     size: string,
     qty: number,
     variantImage: string,
+    allVariants: ProductVariant[], //
   ) => void;
 }
 
 const QuickAddModal: React.FC<QuickAddModalProps> = ({
   product,
   colorGroups,
+  allVariants,
   onClose,
   onConfirm,
 }) => {
@@ -64,14 +67,12 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
 
   const activeGroup = colorGroups[selectedColorIdx];
 
-  // Tallas disponibles para el color seleccionado
   const availableSizes =
     activeGroup?.variants
       .filter((v) => v.isActive && v.stock > 0)
       .map((v) => v.size)
       .filter((s, i, arr) => arr.indexOf(s) === i) ?? [];
 
-  // Reset talla al cambiar color
   useEffect(() => {
     setSelectedSize(null);
   }, [selectedColorIdx]);
@@ -84,13 +85,13 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
       selectedSize,
       qty,
       activeGroup.imageUrl,
+      allVariants, // 
     );
     onClose();
   };
 
   return (
     <>
-      {/* Overlay */}
       <div
         style={{
           position: "fixed",
@@ -101,8 +102,6 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
         }}
         onClick={onClose}
       />
-
-      {/* Modal */}
       <div
         style={{
           position: "fixed",
@@ -121,7 +120,6 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
       >
         <style>{`@keyframes slideUp { from { transform: translateY(60px); opacity:0 } to { transform: translateY(0); opacity:1 } }`}</style>
 
-        {/* Handle */}
         <div
           style={{
             width: 36,
@@ -299,7 +297,6 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 0,
               width: "fit-content",
               border: "1px solid #d0d0d0",
               borderRadius: 8,
@@ -353,7 +350,6 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
           </div>
         </div>
 
-        {/* Botón confirmar */}
         <button
           onClick={handleConfirm}
           disabled={!selectedSize}
@@ -423,25 +419,24 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   };
 
   const handleNavigate = () => navigate(`/productos/${product.slug}`);
-
-  // Abre el modal de selección rápida (requiere auth)
   const handleAddToCart = () =>
     requireAuth("Inicia sesión para añadir productos a tu bolsa", () =>
       setQuickAddOpen(true),
     );
 
-  // Confirmar desde el modal — agrega con talla, color, cantidad e imagen de variante correctos
+  // Recibe allVariants y los pasa al producto para que CartContext encuentre el variantId
   const handleQuickAddConfirm = (
     colorName: string,
     colorHex: string,
     size: string,
     qty: number,
     variantImage: string,
+    allVariants: ProductVariant[],
   ) => {
     addItem(
-      product,
+      { ...product, variants: allVariants },
       qty,
-      size as never,
+      size as Size,
       { name: colorName, hex: colorHex },
       variantImage,
     );
@@ -463,7 +458,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   return (
     <>
       <article className={styles.card}>
-        {/* Image */}
         <div className={styles.imgWrap}>
           <div className={styles.imgInner} style={{ background: activeBg }}>
             <img
@@ -477,7 +471,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             />
           </div>
 
-          {/* Badges */}
           <div className={styles.badges}>
             {product.isNew && (
               <span className={`${styles.badge} ${styles.new}`}>Nuevo</span>
@@ -490,7 +483,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             )}
           </div>
 
-          {/* Wishlist */}
           <button
             className={`${styles.wishBtn} ${liked ? styles.liked : ""}`}
             onClick={handleWishlist}
@@ -499,7 +491,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             {liked ? "♥" : "♡"}
           </button>
 
-          {/* Actions overlay */}
           <div className={styles.actions}>
             <button className={styles.addBtn} onClick={handleAddToCart}>
               Añadir a la Bolsa
@@ -514,7 +505,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
           </div>
         </div>
 
-        {/* Info */}
         <div className={styles.info}>
           <p className={styles.cat}>
             {product.category.charAt(0).toUpperCase() +
@@ -530,7 +520,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             size="sm"
           />
 
-          {/* Swatches */}
           {!loadingVariants && colorGroups.length > 0 && (
             <div className={styles.swatches}>
               {colorGroups.slice(0, 5).map((g, i) => (
@@ -567,11 +556,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         />
       </article>
 
-      {/* Modal de selección rápida — fuera del article para evitar z-index issues */}
       {quickAddOpen && (
         <QuickAddModal
           product={product}
           colorGroups={colorGroups}
+          allVariants={variants} // pasamos todas las variantes
           onClose={() => setQuickAddOpen(false)}
           onConfirm={handleQuickAddConfirm}
         />

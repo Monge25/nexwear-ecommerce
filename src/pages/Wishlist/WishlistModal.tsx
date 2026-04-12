@@ -3,7 +3,7 @@ import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/hooks/useCart";
 import { formatPrice } from "@/utils/formatPrice";
 import Price from "@/components/common/Price";
-import type { Product, ProductVariant } from "@/types";
+import type { Product, ProductVariant, Size } from "@/types";
 import styles from "./Wishlist.module.css";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ function groupByColor(variants: ProductVariant[]) {
   return Array.from(map.entries()).map(([color, data]) => ({ color, ...data }));
 }
 
-// ── QuickAddModal (mismo que ProductCard) ─────────────────────────────────────
+// ── QuickAddModal ─────────────────────────────────────────────────────────────
 interface QuickAddModalProps {
   product: Product;
   onClose: () => void;
@@ -36,6 +36,7 @@ interface QuickAddModalProps {
     size: string,
     qty: number,
     variantImage: string,
+    allVariants: ProductVariant[], // ✅ pasamos todas las variantes
   ) => void;
 }
 
@@ -81,6 +82,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
       selectedSize,
       qty,
       activeGroup.imageUrl,
+      variants, // asamos todas las variantes fetched
     );
     onClose();
   };
@@ -115,7 +117,6 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
       >
         <style>{`@keyframes slideUp { from { transform: translateY(60px); opacity:0 } to { transform: translateY(0); opacity:1 } }`}</style>
 
-        {/* Handle */}
         <div
           style={{
             width: 36,
@@ -169,7 +170,6 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
           </div>
         </div>
 
-        {/* Loading */}
         {loading && (
           <p
             style={{
@@ -364,7 +364,6 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
           </div>
         )}
 
-        {/* Confirmar */}
         <button
           onClick={handleConfirm}
           disabled={!selectedSize || loading}
@@ -422,12 +421,9 @@ const WishlistModal: React.FC = () => {
 
   return (
     <>
-      {/* Overlay */}
       <div className={styles.overlay} onClick={closeWishlist} />
 
-      {/* Panel */}
       <div className={styles.panel}>
-        {/* Header */}
         <div className={styles.header}>
           <div>
             <h2 className={styles.title}>Favoritos</h2>
@@ -445,28 +441,21 @@ const WishlistModal: React.FC = () => {
           </div>
         </div>
 
-        {/* Items */}
         <div className={styles.items}>
           {items.map((item) => (
             <div key={item.id} className={styles.item}>
-              {/* Imagen */}
               <div className={styles.itemImg}>
                 <img src={item.imageUrl} alt={item.name} />
               </div>
-
-              {/* Info */}
               <div className={styles.itemInfo}>
                 <h4 className={styles.itemName}>{item.name}</h4>
                 <p className={styles.itemPrice}>{formatPrice(item.price)}</p>
-
-                {/*Abre modal de selección de variante */}
                 <button
                   className={styles.add}
                   onClick={() => setQuickAddProduct(item as unknown as Product)}
                 >
                   AÑADIR A BOLSA
                 </button>
-
                 <button className={styles.remove} onClick={() => toggle(item)}>
                   Eliminar
                 </button>
@@ -475,22 +464,28 @@ const WishlistModal: React.FC = () => {
           ))}
         </div>
 
-        {/* Empty */}
         {items.length === 0 && (
           <div className={styles.empty}>No tienes favoritos aún</div>
         )}
       </div>
 
-      {/*Modal de variante — fuera del panel para z-index correcto */}
       {quickAddProduct && (
         <QuickAddModal
           product={quickAddProduct}
           onClose={() => setQuickAddProduct(null)}
-          onConfirm={(colorName, colorHex, size, qty, variantImage) => {
+          onConfirm={(
+            colorName,
+            colorHex,
+            size,
+            qty,
+            variantImage,
+            allVariants,
+          ) => {
+            // Pasamos el producto con todas las variantes para que CartContext encuentre el variantId
             addItem(
-              quickAddProduct,
+              { ...quickAddProduct, variants: allVariants },
               qty,
-              size as never,
+              size as Size,
               { name: colorName, hex: colorHex },
               variantImage,
             );

@@ -4,22 +4,33 @@ import { useCart } from "@/hooks/useCart";
 import { useFetch } from "@/hooks/useFetch";
 import { formatPrice } from "@/utils/formatPrice";
 import Button from "@/components/ui/Button";
-import orderService from "@/services/orderService";
 import addressService, { Address } from "@/services/addressService";
-import type { CheckoutData } from "@/types";
+import MercadoPagoForm from "@/components/payments/MercadoPagoForm";
 import styles from "./Checkout.module.css";
-import PaypalButton from "@/components/payments/PaypalButton";
 
-type Step = "shipping" | "payment" | "review";
+const formatPhone = (value: string) => {
+  const numbers = value.replace(/\D/g, "").slice(0, 10);
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 6) return `${numbers.slice(0, 3)} ${numbers.slice(3)}`;
+  return `${numbers.slice(0, 3)} ${numbers.slice(3, 6)} ${numbers.slice(6)}`;
+};
+
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isValidPhone = (phone: string) => phone.replace(/\D/g, "").length === 10;
+const isValidZip = (zip: string) => /^\d{5}$/.test(zip);
+
+type Step = "shipping" | "payment";
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
   const { availableItems, subtotal, shipping, total, clearCart } = useCart();
 
   const [step, setStep] = useState<Step>("shipping");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [zipTimeout, setZipTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [selectedAddressId, setSelectedAddrId] = useState<string | undefined>();
+  const [saveNewAddress, setSaveNewAddress] = useState(false);
+  const [addressAlias, setAddressAlias] = useState("");
 
   const { data: addresses = [] } = useFetch<Address[]>(
     () => addressService.getUserAddresses(),
@@ -37,18 +48,18 @@ const Checkout: React.FC = () => {
     state: "",
     zipCode: "",
     country: "México",
-    method: "card" as "card" | "paypal",
   });
 
   const set =
     (key: string) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       setForm((f) => ({ ...f, [key]: e.target.value }));
+      if (selectedAddressId) setSelectedAddrId(undefined);
+    };
 
   const handleZipCode = (zip: string) => {
-    if (zipTimeout) clearTimeout(zipTimeout);
-    const timeout = setTimeout(async () => {
-      if (zip.length !== 5) return;
+    if (zip.length !== 5) return;
+    setTimeout(async () => {
       try {
         const res = await fetch(`https://api.zippopotam.us/MX/${zip}`);
         if (!res.ok) return;
@@ -62,48 +73,40 @@ const Checkout: React.FC = () => {
             country: "México",
           }));
         }
-      } catch (err) {
-        console.error("ZIP error", err);
+      } catch {
+        /* silencioso */
       }
     }, 500);
-    setZipTimeout(timeout);
   };
 
-  const handleOrder = async () => {
-    setLoading(true);
+  const handleSelectAddress = (addr: Address) => {
+    setSelectedAddrId(String(addr.id));
+    setForm((f) => ({
+      ...f,
+      street: addr.street,
+      colony: addr.interior ?? "",
+      city: addr.city,
+      state: addr.state,
+      zipCode: addr.zipCode,
+      country: addr.country,
+      phone: addr.phone ?? f.phone,
+    }));
+  };
+
+  const handleContinue = () => {
+    if (!form.firstName.trim()) return setError("Ingresa tu nombre");
+    if (!form.lastName.trim()) return setError("Ingresa tu apellido");
+    if (!isValidEmail(form.email)) return setError("Ingresa un email válido");
+    if (!isValidPhone(form.phone))
+      return setError("Ingresa un teléfono válido de 10 dígitos");
+    if (!form.street.trim()) return setError("Ingresa la calle y número");
+    if (!form.city.trim()) return setError("Ingresa la ciudad");
+    if (!form.state.trim()) return setError("Ingresa el estado");
+    if (!isValidZip(form.zipCode))
+      return setError("Código postal inválido, debe ser 5 dígitos");
+
     setError("");
-    try {
-      const data: CheckoutData = {
-        newAddress: {
-          label: "Principal",
-          street: form.street,
-          city: form.city,
-          state: form.state,
-          zipCode: form.zipCode,
-          country: form.country,
-        },
-        paymentMethod: form.method,
-      };
-      const order = await orderService.createOrder(data);
-      clearCart();
-      navigate(`/perfil/pedidos?order=${order.id}`);
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Error al procesar el pedido",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Callback compartido para ambos métodos ────────────────────────
-  const handlePaypalSuccess = (orderId: string) => {
-    clearCart();
-    navigate(`/perfil/pedidos?order=${orderId}`);
-  };
-
-  const handlePaypalError = () => {
-    setError("Hubo un error con el pago. Intenta de nuevo.");
+    setStep("payment");
   };
 
   return (
@@ -114,56 +117,66 @@ const Checkout: React.FC = () => {
 
           {/* Step nav */}
           <div className={styles.stepNav}>
-            {(["shipping", "payment", "review"] as Step[]).map((s, i) => (
+            {(["shipping", "payment"] as Step[]).map((s, i) => (
               <React.Fragment key={s}>
                 <div
-                  className={`${styles.stepItem} ${
-                    step === s ? styles.stepActive : ""
-                  }`}
+                  className={`${styles.stepItem} ${step === s ? styles.stepActive : ""}`}
                 >
                   <span className={styles.stepNum}>{i + 1}</span>
                   <span className={styles.stepLabel}>
-                    {["Envío", "Pago", "Revisar"][i]}
+                    {["Envío", "Pago"][i]}
                   </span>
                 </div>
-                {i < 2 && <div className={styles.stepLine} />}
+                {i < 1 && <div className={styles.stepLine} />}
               </React.Fragment>
             ))}
           </div>
 
-          {/* ── SHIPPING ─────────────────────────────────────────────────── */}
+          {/* ── SHIPPING ── */}
           {step === "shipping" && (
             <div className={styles.stepContent}>
               <h2 className={styles.stepTitle}>Dirección de envío</h2>
 
+              {/* Direcciones guardadas */}
               {Array.isArray(addresses) && addresses.length > 0 && (
                 <div className={styles.savedAddresses}>
-                  <h3>Direcciones guardadas</h3>
-                  {addresses.map((addr: Address) => (
-                    <div
-                      key={addr.id}
-                      className={styles.addressCard}
-                      onClick={() =>
-                        setForm((f) => ({
-                          ...f,
-                          street: addr.street,
-                          city: addr.city,
-                          state: addr.state,
-                          zipCode: addr.zipCode,
-                          country: addr.country,
-                        }))
-                      }
-                    >
-                      <strong>{addr.label}</strong>
-                      <p>{addr.street}</p>
-                      <p>
-                        {addr.city}, {addr.state}
-                      </p>
-                    </div>
-                  ))}
+                  <p className={styles.savedTitle}>Direcciones guardadas</p>
+                  <div className={styles.addressGrid}>
+                    {addresses.map((addr) => (
+                      <div
+                        key={addr.id}
+                        className={`${styles.addressCard} ${
+                          selectedAddressId === String(addr.id)
+                            ? styles.addressCardSelected
+                            : ""
+                        }`}
+                        onClick={() => handleSelectAddress(addr)}
+                      >
+                        {addr.isDefault && (
+                          <span className={styles.defaultBadge}>
+                            ✓ Predeterminada
+                          </span>
+                        )}
+                        <strong>{addr.alias ?? addr.label}</strong>
+                        <p>
+                          {addr.street}
+                          {addr.interior ? `, ${addr.interior}` : ""}
+                        </p>
+                        <p>
+                          {addr.city}, {addr.state} {addr.zipCode}
+                        </p>
+                        {addr.phone && <p>{addr.phone}</p>}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className={styles.divider}>
+                    <span>o ingresa una nueva dirección</span>
+                  </div>
                 </div>
               )}
 
+              {/* Formulario */}
               <div className={styles.grid2}>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Nombre</label>
@@ -188,7 +201,13 @@ const Checkout: React.FC = () => {
                 <input
                   className={styles.formInput}
                   value={form.email}
-                  onChange={set("email")}
+                  placeholder="correo@ejemplo.com"
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      email: e.target.value.toLowerCase(),
+                    }))
+                  }
                 />
               </div>
 
@@ -197,13 +216,19 @@ const Checkout: React.FC = () => {
                 <input
                   className={styles.formInput}
                   value={form.phone}
-                  onChange={set("phone")}
+                  placeholder="644 245 5275"
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      phone: formatPhone(e.target.value),
+                    }))
+                  }
                 />
               </div>
 
               <div className={styles.grid2}>
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Calle</label>
+                  <label className={styles.formLabel}>Calle y número</label>
                   <input
                     className={styles.formInput}
                     value={form.street}
@@ -211,7 +236,7 @@ const Checkout: React.FC = () => {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Colonia</label>
+                  <label className={styles.formLabel}>Colonia / Interior</label>
                   <input
                     className={styles.formInput}
                     value={form.colony}
@@ -261,175 +286,102 @@ const Checkout: React.FC = () => {
                 </div>
               </div>
 
+              {/* Guardar dirección nueva */}
+              {!selectedAddressId && (
+                <>
+                  <label className={styles.checkLabel}>
+                    <input
+                      type="checkbox"
+                      checked={saveNewAddress}
+                      onChange={(e) => setSaveNewAddress(e.target.checked)}
+                      style={{ accentColor: "var(--negro)" }}
+                    />
+                    Guardar esta dirección para futuros pedidos
+                  </label>
+
+                  {saveNewAddress && (
+                    <div className={styles.formGroup} style={{ marginTop: 8 }}>
+                      <label className={styles.formLabel}>
+                        Alias de la dirección
+                      </label>
+                      <input
+                        className={styles.formInput}
+                        placeholder="Casa, Oficina…"
+                        value={addressAlias}
+                        onChange={(e) => setAddressAlias(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {error && <p className={styles.error}>{error}</p>}
+
               <div className={styles.btnRow}>
                 <Button variant="ghost" onClick={() => navigate("/")}>
                   ← Volver
                 </Button>
-                <Button variant="fill" onClick={() => setStep("payment")}>
+                <Button variant="fill" onClick={handleContinue}>
                   Continuar con el Pago →
                 </Button>
               </div>
             </div>
           )}
 
-          {/* ── PAYMENT ──────────────────────────────────────────────────── */}
+          {/* ── PAYMENT ── */}
           {step === "payment" && (
             <div className={styles.stepContent}>
               <h2 className={styles.stepTitle}>Método de pago</h2>
 
-              <div className={styles.methodSelector}>
-                {/* Tarjeta */}
-                <label
-                  className={`${styles.methodOption} ${form.method === "card" ? styles.methodSelected : ""}`}
+              {/* Resumen dirección seleccionada */}
+              <div className={styles.shippingResume}>
+                <p className={styles.shippingResumeLabel}>Enviando a</p>
+                <p className={styles.shippingResumeText}>
+                  {form.street}
+                  {form.colony ? `, ${form.colony}` : ""} · {form.city},{" "}
+                  {form.state} {form.zipCode}
+                </p>
+                <button
+                  className={styles.shippingResumeEdit}
+                  onClick={() => setStep("shipping")}
                 >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="card"
-                    checked={form.method === "card"}
-                    onChange={() => setForm((f) => ({ ...f, method: "card" }))}
-                    className={styles.methodRadio}
-                  />
-                  <div className={styles.methodBody}>
-                    <div className={styles.methodHeader}>
-                      <span className={styles.methodLabel}>
-                        Tarjeta de crédito / débito
-                      </span>
-                      <div className={styles.cardBrands}>
-                        <img
-                          src="https://vectorified.com/image/visa-logo-vector-17.png"
-                          alt="Visa"
-                          style={{ height: 13 }}
-                        />
-                        <img
-                          src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg"
-                          alt="Mastercard"
-                          style={{ height: 20 }}
-                        />
-                        <img
-                          src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg"
-                          alt="Amex"
-                          style={{ height: 20 }}
-                        />
-                      </div>
-                    </div>
-                    <p className={styles.methodHint}>
-                      Pago seguro con encriptación SSL de 256 bits
-                    </p>
-                  </div>
-                </label>
-
-                {/* PayPal */}
-                <label
-                  className={`${styles.methodOption} ${form.method === "paypal" ? styles.methodSelected : ""}`}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="paypal"
-                    checked={form.method === "paypal"}
-                    onChange={() =>
-                      setForm((f) => ({ ...f, method: "paypal" }))
-                    }
-                    className={styles.methodRadio}
-                  />
-                  <div className={styles.methodBody}>
-                    <div className={styles.methodHeader}>
-                      <span className={styles.methodLabel}>PayPal</span>
-                    </div>
-                    <p className={styles.methodHint}>
-                      Serás redirigido para completar el pago de forma segura
-                    </p>
-                  </div>
-                </label>
+                  Cambiar
+                </button>
               </div>
-
-              {/* Tarjeta — widget de PayPal solo con opción de tarjeta */}
-              {form.method === "card" && (
-                <div className={styles.paypalWrap}>
-                  <PaypalButton
-                    fundingSource="card"
-                    onSuccess={handlePaypalSuccess}
-                    onError={handlePaypalError}
-                  />
-                </div>
-              )}
-
-              {/* PayPal — widget de PayPal normal */}
-              {form.method === "paypal" && (
-                <div className={styles.paypalWrap}>
-                  <PaypalButton
-                    fundingSource="paypal"
-                    onSuccess={handlePaypalSuccess}
-                    onError={handlePaypalError}
-                  />
-                </div>
-              )}
-
-              <div className={styles.btnRow}>
-                <Button variant="ghost" onClick={() => navigate("shipping")}>
-                  ← Volver
-                </Button>
-                <Button variant="fill" onClick={() => setStep("review")}>
-                  Continuar con el pedido →
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* ── REVIEW ───────────────────────────────────────────────────── */}
-          {step === "review" && (
-            <div className={styles.stepContent}>
-              <h2 className={styles.stepTitle}>Revisar pedido</h2>
 
               {error && <p className={styles.error}>{error}</p>}
 
-              <div className={styles.reviewBlock}>
-                <p className={styles.reviewLabel}>Dirección de envío</p>
-                <p>
-                  {form.firstName} {form.lastName}
-                  <br />
-                  {form.street}
-                  <br />
-                  {form.colony}, {form.city}
-                  <br />
-                  {form.state}, {form.zipCode}
-                  <br />
-                  {form.country}
-                </p>
-              </div>
-
-              <div className={styles.reviewBlock}>
-                <p className={styles.reviewLabel}>Método de pago</p>
-                <p>
-                  {form.method === "card"
-                    ? "Tarjeta de crédito / débito"
-                    : "PayPal"}
-                </p>
-              </div>
-
-              <div className={styles.reviewBlock}>
-                <p className={styles.reviewLabel}>Envío</p>
-                <p>
-                  Envío estándar
-                  <br />
-                  Entrega estimada: 3 - 5 días hábiles
-                </p>
-              </div>
+              <MercadoPagoForm
+                addressId={selectedAddressId}
+                street={!selectedAddressId ? form.street : undefined}
+                interior={!selectedAddressId ? form.colony : undefined}
+                city={!selectedAddressId ? form.city : undefined}
+                state={!selectedAddressId ? form.state : undefined}
+                zipCode={!selectedAddressId ? form.zipCode : undefined}
+                country={!selectedAddressId ? form.country : undefined}
+                phone={!selectedAddressId ? form.phone : undefined}
+                saveAddress={!selectedAddressId ? saveNewAddress : undefined}
+                addressAlias={
+                  !selectedAddressId && saveNewAddress
+                    ? addressAlias
+                    : undefined
+                }
+                onSuccess={(orderId) => {
+                  navigate(`/perfil?order=${orderId}`);
+                  clearCart();
+                }}
+              />
 
               <div className={styles.btnRow}>
-                <Button variant="ghost" onClick={() => setStep("payment")}>
+                <Button variant="ghost" onClick={() => setStep("shipping")}>
                   ← Volver
-                </Button>
-                <Button variant="fill" loading={loading} onClick={handleOrder}>
-                  Confirmar Pedido
                 </Button>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── SUMMARY ──────────────────────────────────────────────────────── */}
+        {/* ── SUMMARY ── */}
         <aside className={styles.summary}>
           <h2 className={styles.sumTitle}>Tu pedido</h2>
 

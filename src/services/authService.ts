@@ -6,38 +6,20 @@ const TOKEN_KEY = "nexwear_token"
 const authService = {
   async login(credentials: LoginCredentials): Promise<User> {
     const { data } = await apiClient.post("/auth/login", credentials)
-
     localStorage.setItem(TOKEN_KEY, data.token)
 
-    const user: User = {
-      id: 0,
-      email: data.email,
-      firstName: data.firstName,
-      lastName: "",
-      role: data.role as "Customer" | "Admin",
-      addresses: [],
-      createdAt: new Date().toISOString(),
-    }
-
-    return user
+    // Obtener perfil real para tener el id correcto (no hardcodear id: 0)
+    const { data: profile } = await apiClient.get<User>("/Users/profile")
+    return profile
   },
 
   async register(userData: RegisterData): Promise<User> {
     const { data } = await apiClient.post("/auth/register", userData)
-
     localStorage.setItem(TOKEN_KEY, data.token)
 
-    const user: User = {
-      id: 0,
-      email: data.email,
-      firstName: data.firstName,
-      lastName: "",
-      role: data.role as "Customer" | "Admin",
-      addresses: [],
-      createdAt: new Date().toISOString(),
-    }
-
-    return user
+    // Igual que login, obtener perfil real
+    const { data: profile } = await apiClient.get<User>("/Users/profile")
+    return profile
   },
 
   async logout(): Promise<void> {
@@ -45,56 +27,60 @@ const authService = {
   },
 
   async getMe(): Promise<User> {
-    const { data } = await apiClient.get<User>("/Users/profile")  // era /auth/me
+    const { data } = await apiClient.get<User>("/Users/profile")
     return data
   },
 
   async updateProfile(updates: Partial<User>): Promise<void> {
-    await apiClient.put("/Users/profile", updates)  // era /auth/me
+    await apiClient.put("/Users/profile", updates)
   },
 
   async changePassword(current: string, next: string): Promise<void> {
-    await apiClient.post("/Users/change-password", {  // era /auth/change-password
+    await apiClient.post("/Users/change-password", {
       currentPassword: current,
       newPassword: next,
     })
   },
-    async requestPasswordReset(email: string): Promise<void> {
-      await apiClient.post("/auth/forgot-password", { email })
-    },
 
-  async resetPassword(token: string, newPassword: string): Promise<void> {
-    await apiClient.post("/auth/reset-password", {
-      token,
-      newPassword,
-    })
+  async requestPasswordReset(email: string): Promise<void> {
+    await apiClient.post("/auth/forgot-password", { email })
   },
 
-// ── Addresses ─────────────────────────────────────────
+  async verifyResetCode(email: string, code: string): Promise<void> {
+  await apiClient.post('/auth/verify-reset-code', { email, code })
+  },
 
-async getAddresses() {
-  const { data } = await apiClient.get("/Addresses")
-  return data
-},
+  async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+    await apiClient.post('/auth/reset-password', { email, code, newPassword })
+  },
 
-async addAddress(address: any) {
-  const { data } = await apiClient.post("/Addresses", address)
-  return data
-},
+  
 
-async updateAddress(id: string, address: any) {
-  const { data } = await apiClient.put(`/Addresses/${id}`, address)
-  return data
-},
+  // ── Addresses ────────────────────────────────────────────────────────
 
-async setDefaultAddress(id: string) {
-  const { data } = await apiClient.put(`/Addresses/${id}/default`, {})
-  return data
-},
+  async getAddresses() {
+    const { data } = await apiClient.get("/Addresses")
+    return data
+  },
 
-async deleteAddress(id: string) {
-  await apiClient.delete(`/Addresses/${id}`)
-},
+  async addAddress(address: any) {
+    const { data } = await apiClient.post("/Addresses", address)
+    return data
+  },
 
+  async updateAddress(id: string, address: any) {
+    const { data } = await apiClient.put(`/Addresses/${id}`, address)
+    return data
+  },
+
+  async setDefaultAddress(id: string) {
+    const { data } = await apiClient.put(`/Addresses/${id}/default`, {})
+    return data
+  },
+
+  async deleteAddress(id: string) {
+    await apiClient.delete(`/Addresses/${id}`)
+  },
 }
+
 export default authService

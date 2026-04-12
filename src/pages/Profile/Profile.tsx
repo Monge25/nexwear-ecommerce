@@ -27,7 +27,7 @@ import {
 
 type Tab = "orders" | "order-detail" | "addresses" | "settings" | "security";
 
-const STATUS_STEPS: Order["status"][] = [
+const STATUS_STEPS = [
   "pending",
   "confirmed",
   "processing",
@@ -42,6 +42,7 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   shipped: <Truck size={14} />,
   delivered: <CheckCircle size={14} />,
   cancelled: <XCircle size={14} />,
+  paid: <CheckCircle size={14} />,
 };
 
 const NAV_ITEMS: { tab: Tab; label: string; icon: React.ReactNode }[] = [
@@ -51,23 +52,29 @@ const NAV_ITEMS: { tab: Tab; label: string; icon: React.ReactNode }[] = [
   { tab: "security", label: "Seguridad", icon: <Shield size={14} /> },
 ];
 
+const formatPhoneMX = (value: string) => {
+  const numbers = value.replace(/\D/g, "").slice(0, 10);
+  const parts = [];
+  if (numbers.length > 0) parts.push(numbers.slice(0, 3));
+  if (numbers.length > 3) parts.push(numbers.slice(3, 6));
+  if (numbers.length > 6) parts.push(numbers.slice(6, 10));
+  return parts.join(" ");
+};
+
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, logout } = useAuth();
 
-  // ── Tabs ──
   const [tab, setTab] = useState<Tab>("orders");
   const [selectedOrder, setOrder] = useState<Order | null>(null);
 
-  // ── Orders ──
   const { data: orders, loading: ordersLoading } = useFetch<Order[]>(
     () => orderService.getOrders(),
     [],
   );
   const highlightOrderId = searchParams.get("order");
 
-  // ── Addresses ──
   const {
     data: addressesData,
     loading: addressesLoading,
@@ -128,17 +135,7 @@ const Profile: React.FC = () => {
     setAddressSaving(true);
     setAddressError("");
     try {
-      await authService.addAddress({
-        alias: addressForm.alias,
-        street: addressForm.street,
-        interior: addressForm.interior,
-        city: addressForm.city,
-        state: addressForm.state,
-        zipCode: addressForm.zipCode,
-        country: addressForm.country,
-        phone: addressForm.phone,
-        isDefault: addressForm.isDefault,
-      });
+      await authService.addAddress(addressForm);
       setShowAddressForm(false);
       resetAddressForm();
       refetchAddresses();
@@ -168,7 +165,6 @@ const Profile: React.FC = () => {
     }
   };
 
-  // ── Profile ──
   const [savingProfile, setSaving] = useState(false);
   const [profileMsg, setMsg] = useState("");
   const [editForm, setEdit] = useState({
@@ -191,7 +187,6 @@ const Profile: React.FC = () => {
     }
   };
 
-  // ── Security ──
   const [pwdForm, setPwd] = useState({ current: "", next: "", confirm: "" });
   const [pwdMsg, setPwdMsg] = useState("");
 
@@ -211,18 +206,19 @@ const Profile: React.FC = () => {
     }
   };
 
-  // ── Misc ──
   const handleLogout = async () => {
     await logout();
     navigate("/");
   };
+
   const handleViewOrder = (order: Order) => {
     setOrder(order);
     setTab("order-detail");
   };
-  const getStepClass = (step: Order["status"], current: Order["status"]) => {
+
+  const getStepClass = (step: string, currentStatus: string) => {
     const si = STATUS_STEPS.indexOf(step);
-    const ci = STATUS_STEPS.indexOf(current);
+    const ci = STATUS_STEPS.indexOf(currentStatus?.toLowerCase());
     if (si < ci) return styles.timeStepDone;
     if (si === ci) return styles.timeStepActive;
     return "";
@@ -324,7 +320,8 @@ const Profile: React.FC = () => {
                       <div className={styles.orderTop}>
                         <div>
                           <p className={styles.orderId}>
-                            Pedido #{String(o.id).slice(-8).toUpperCase()}
+                            {o.orderNumber ??
+                              `Pedido #${String(o.id).slice(-8).toUpperCase()}`}
                           </p>
                           <p className={styles.orderDate}>
                             {new Date(o.createdAt).toLocaleDateString("es-MX", {
@@ -339,10 +336,12 @@ const Profile: React.FC = () => {
                             {formatPrice(o.total)}
                           </span>
                           <span
-                            className={`${styles.statusBadge} ${styles[`st_${o.status}`]}`}
+                            className={`${styles.statusBadge} ${styles[`st_${o.status?.toLowerCase()}`]}`}
                           >
-                            {STATUS_ICONS[o.status]}
-                            {ORDER_STATUS_LABELS[o.status] ?? o.status}
+                            {STATUS_ICONS[o.status?.toLowerCase()] ?? (
+                              <Package size={14} />
+                            )}
+                            {o.status}
                           </span>
                         </div>
                       </div>
@@ -405,17 +404,20 @@ const Profile: React.FC = () => {
                   ← Volver
                 </button>
                 <h2 className={styles.contentTitle} style={{ margin: 0 }}>
-                  Pedido #{String(selectedOrder.id).slice(-8).toUpperCase()}
+                  {selectedOrder.orderNumber ??
+                    `Pedido #${String(selectedOrder.id).slice(-8).toUpperCase()}`}
                 </h2>
                 <span
-                  className={`${styles.statusBadge} ${styles[`st_${selectedOrder.status}`]}`}
+                  className={`${styles.statusBadge} ${styles[`st_${selectedOrder.status?.toLowerCase()}`]}`}
                 >
-                  {STATUS_ICONS[selectedOrder.status]}
-                  {ORDER_STATUS_LABELS[selectedOrder.status]}
+                  {STATUS_ICONS[selectedOrder.status?.toLowerCase()] ?? (
+                    <Package size={14} />
+                  )}
+                  {selectedOrder.status}
                 </span>
               </div>
 
-              {selectedOrder.status !== "cancelled" ? (
+              {selectedOrder.status?.toLowerCase() !== "cancelled" ? (
                 <div className={styles.timeline}>
                   {STATUS_STEPS.map((step, i) => (
                     <React.Fragment key={step}>
@@ -426,13 +428,17 @@ const Profile: React.FC = () => {
                           {STATUS_ICONS[step]}
                         </div>
                         <span className={styles.timeLabel}>
-                          {ORDER_STATUS_LABELS[step]}
+                          {ORDER_STATUS_LABELS[
+                            step as keyof typeof ORDER_STATUS_LABELS
+                          ] ?? step}
                         </span>
                       </div>
                       {i < STATUS_STEPS.length - 1 && (
                         <div
                           className={`${styles.timeLine} ${
-                            STATUS_STEPS.indexOf(selectedOrder.status) > i
+                            STATUS_STEPS.indexOf(
+                              selectedOrder.status?.toLowerCase(),
+                            ) > i
                               ? styles.timeLineFill
                               : ""
                           }`}
@@ -454,10 +460,11 @@ const Profile: React.FC = () => {
                 </div>
               )}
 
+              {/* Productos */}
               <div className={styles.detailSection}>
                 <p className={styles.secLabel}>Productos</p>
-                {selectedOrder.items.map((item, i) => (
-                  <div key={i} className={styles.detailItem}>
+                {selectedOrder.items.map((item) => (
+                  <div key={item.id} className={styles.detailItem}>
                     <div className={styles.detailImg}>
                       {item.imageUrl && (
                         <img src={item.imageUrl} alt={item.productName} />
@@ -468,48 +475,96 @@ const Profile: React.FC = () => {
                         {item.productName}
                       </p>
                       <p className={styles.detailItemMeta}>
-                        Talla {item.size} · {item.color} · ×{item.quantity}
+                        Talla {item.variantSize} · {item.variantColor} · ×
+                        {item.quantity}
                       </p>
                     </div>
                     <p className={styles.detailItemPrice}>
-                      {formatPrice(item.price * item.quantity)}
+                      {formatPrice(item.unitPrice * item.quantity)}
                     </p>
                   </div>
                 ))}
               </div>
 
+              {/* Resumen */}
               <div className={styles.detailSection}>
                 <p className={styles.secLabel}>Resumen</p>
-                <div className={styles.sumRow}>
-                  <span>Subtotal</span>
-                  <span>{formatPrice(selectedOrder.subtotal)}</span>
-                </div>
-                <div className={styles.sumRow}>
-                  <span>Envío</span>
-                  <span>
-                    {selectedOrder.shipping === 0
-                      ? "Gratis"
-                      : formatPrice(selectedOrder.shipping)}
-                  </span>
-                </div>
+                {selectedOrder.subtotal != null && (
+                  <div className={styles.sumRow}>
+                    <span>Subtotal</span>
+                    <span>{formatPrice(selectedOrder.subtotal)}</span>
+                  </div>
+                )}
+                {selectedOrder.shipping != null && (
+                  <div className={styles.sumRow}>
+                    <span>Envío</span>
+                    <span>
+                      {selectedOrder.shipping === 0
+                        ? "Gratis"
+                        : formatPrice(selectedOrder.shipping)}
+                    </span>
+                  </div>
+                )}
                 <div className={`${styles.sumRow} ${styles.sumTotal}`}>
                   <span>Total</span>
                   <span>{formatPrice(selectedOrder.total)}</span>
                 </div>
               </div>
 
+              {/* Dirección */}
               {selectedOrder.shippingAddress && (
                 <div className={styles.detailSection}>
                   <p className={styles.secLabel}>Dirección de envío</p>
-                  <p>{selectedOrder.shippingAddress.street}</p>
-                  <p>
-                    {selectedOrder.shippingAddress.city},{" "}
-                    {selectedOrder.shippingAddress.state}{" "}
-                    {selectedOrder.shippingAddress.zipCode}
+                  <p
+                    style={{
+                      fontSize: 14,
+                      color: "var(--g600)",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {selectedOrder.shippingAddress}
                   </p>
-                  <p>{selectedOrder.shippingAddress.country}</p>
                 </div>
               )}
+
+              {/* Info de pago */}
+              <div className={styles.detailSection}>
+                <p className={styles.secLabel}>Información del pago</p>
+                <div className={styles.sumRow}>
+                  <span>Método</span>
+                  <span style={{ textTransform: "capitalize" }}>
+                    {selectedOrder.paymentMethod}
+                  </span>
+                </div>
+                <div className={styles.sumRow}>
+                  <span>Fecha</span>
+                  <span>
+                    {new Date(selectedOrder.createdAt).toLocaleDateString(
+                      "es-MX",
+                      {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      },
+                    )}
+                  </span>
+                </div>
+                {selectedOrder.paidAt && (
+                  <div className={styles.sumRow}>
+                    <span>Pagado el</span>
+                    <span>
+                      {new Date(selectedOrder.paidAt).toLocaleDateString(
+                        "es-MX",
+                        {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        },
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -562,10 +617,9 @@ const Profile: React.FC = () => {
                             marginTop: 4,
                           }}
                         >
-                           {a.phone}
+                          {a.phone}
                         </p>
                       )}
-
                       <div
                         style={{
                           display: "flex",
@@ -639,7 +693,6 @@ const Profile: React.FC = () => {
               <div className={styles.tabHeader}>
                 <h2 className={styles.contentTitle}>Mi Información</h2>
               </div>
-
               <form
                 className={styles.settingsForm}
                 onSubmit={handleSaveProfile}
@@ -700,7 +753,6 @@ const Profile: React.FC = () => {
               <div className={styles.tabHeader}>
                 <h2 className={styles.contentTitle}>Seguridad</h2>
               </div>
-
               <form
                 className={styles.settingsForm}
                 onSubmit={handleChangePassword}
@@ -792,7 +844,10 @@ const Profile: React.FC = () => {
                 placeholder="+52 662 000 0000"
                 value={addressForm.phone}
                 onChange={(e) =>
-                  setAddressForm({ ...addressForm, phone: e.target.value })
+                  setAddressForm({
+                    ...addressForm,
+                    phone: formatPhoneMX(e.target.value),
+                  })
                 }
               />
             </div>

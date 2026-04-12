@@ -165,7 +165,7 @@
   align-items: flex-start;
   gap: 14px;
   border: 1px solid #ddd9d2;
-  padding: 18px 20px;
+  padding: 12px 14px;
   cursor: pointer;
   background: #faf8f5;
   transition: border-color 0.2s, background 0.2s;
@@ -245,85 +245,55 @@
   filter: none;
 }
 
-/* ── Campos de tarjeta agrupados ─────────────────────────────────────── */
+/* ── Card Fields Compact ───────────────────────── */
+
 .cardFields {
   display: flex;
   flex-direction: column;
-  animation: slideIn 0.22s ease;
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  gap: 10px;
+  margin-top: 6px;
 }
 
 .cardField {
-  position: relative;
-  border: 1px solid #ddd9d2;
-  border-bottom: none;          /* los campos se unen entre sí */
-  background: #faf8f5;
-  transition: border-color 0.2s;
-}
-
-/* El último campo suelto (no dentro de row) cierra el borde inferior */
-.cardFields > .cardField:last-of-type {
-  border-bottom: 1px solid #ddd9d2;
-}
-
-.cardField:focus-within {
-  border-color: #1a1a18;
-  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .cardField label {
-  display: block;
   font-size: 9px;
-  letter-spacing: 0.2em;
+  letter-spacing: .14em;
   text-transform: uppercase;
   color: #9a8c7a;
-  padding: 11px 16px 0;
   font-weight: 500;
 }
 
 .cardField input {
-  display: block;
-  width: 100%;
-  border: none;
-  background: transparent;
+  height: 36px;              /* MÁS PEQUEÑO */
+  padding: 0 12px;           /* MENOS PADDING */
+  border: 1px solid #e5e1db;
+  background: #ffffff;
   font-size: 13px;
-  color: #1a1a18;
-  padding: 3px 16px 11px;
-  outline: none;
   font-family: inherit;
-  letter-spacing: 0.01em;
+  transition: all .18s ease;
+}
+
+.cardField input:focus {
+  outline: none;
+  border-color: #1a1a18;
 }
 
 .cardField input::placeholder {
-  color: #c4bdb5;
+  color: #bfb8ae;
   font-size: 12px;
 }
 
-/* Fila de dos campos: vencimiento + CVV */
+/* Row vencimiento + CVV */
+
 .cardFieldRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border: 1px solid #ddd9d2;    /* borde exterior del row */
-  border-top: none;             /* se une al campo de arriba sin duplicar */
-  background: #faf8f5;
-}
-
-/* Los cardField dentro del row no tienen borde propio */
-.cardFieldRow .cardField {
-  border: none;
-  border-right: 1px solid #ddd9d2;  /* separador vertical entre los dos */
-}
-
-.cardFieldRow .cardField:last-child {
-  border-right: none;
-}
-
-.cardFieldRow:focus-within {
-  border-color: #1a1a18;
+  gap: 10px;
 }
 
 /* ── Nota de seguridad ────────────────────────────────────────────────── */
@@ -342,11 +312,6 @@
   color: #9a8c7a;
   line-height: 1.55;
   margin: 0;
-}
-
-/* ── PayPal wrap ─────────────────────────────────────────────────────── */
-.paypalWrap {
-  animation: slideIn 0.22s ease;
 }
 
 /* ── Review blocks ───────────────────────────────────────────────────── */
@@ -589,4 +554,140 @@
 .reviewPrice {
   font-size: 13px;
   font-weight: 500;
+}
+
+.savedTitle {
+  font-size: 9.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--g400);
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.addressGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.addressCardSelected {
+  border-color: var(--negro) !important;
+  background: var(--g100);
+}
+
+.defaultBadge {
+  display: inline-block;
+  font-size: 8.5px;
+  letter-spacing: .1em;
+  background: var(--negro);
+  color: var(--blanco);
+  padding: 2px 7px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+  color: var(--g400);
+  font-size: 11px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--g200);
+}
+
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--g600);
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+.shippingResume {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--g100);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.shippingResumeLabel {
+  font-size: 9px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--g400);
+  flex-shrink: 0;
+}
+
+.shippingResumeText {
+  font-size: 12.5px;
+  color: var(--negro);
+  flex: 1;
+}
+
+.shippingResumeEdit {
+  font-size: 10px;
+  color: var(--dorado);
+  background: none;
+  border: none;
+  cursor: pointer;
+  letter-spacing: .08em;
+  padding: 0;
+  font-family: var(--font-body);
+  flex-shrink: 0;
+}
+
+.shippingResumeEdit:hover {
+  text-decoration: underline;
+}
+
+.cardNumber input {
+  letter-spacing: 2px;
+  font-size: 15px;
+}
+
+.cardField {
+  padding: 8px 12px !important;
+  min-height: auto !important;
+}
+
+.cardField input {
+  height: 28px !important;
+  padding: 0 !important;
+}
+
+.cardFieldRow {
+  gap: 8px !important;
+}
+
+.cardField {
+  padding: 6px 12px !important;
+  min-height: 42px !important;
+}
+
+.cardField label {
+  font-size: 8px;
+  margin-bottom: 2px;
+}
+
+.cardField > div {
+  height: 30px !important;
+}
+
+.cardField iframe {
+  height: 30px !important;
 }
