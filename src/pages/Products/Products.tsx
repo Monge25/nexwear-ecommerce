@@ -3,16 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import productService from "@/services/productService";
 import ProductCard from "@/components/common/ProductCard";
 import Loader from "@/components/ui/Loader";
-import { useCart } from "@/hooks/useCart";
 import type { Product, ProductFilters } from "@/types";
 import { CATEGORIES, SIZES, SORT_OPTIONS } from "@/utils/constants";
 import styles from "./Products.module.css";
 
-// ─── Precio máximo en MXN ─────────────────────────────────────────────────────
 const MAX_PRICE = 10000;
 const PAGE_LIMIT = 20;
 
-// ─── Grid toggle config ───────────────────────────────────────────────────────
 const GRID_CONFIGS: { cols: number; dots: [number, number][] }[] = [
   {
     cols: 2,
@@ -49,7 +46,6 @@ const GRID_CONFIGS: { cols: number; dots: [number, number][] }[] = [
   },
 ];
 
-// ─── GridToggle component ─────────────────────────────────────────────────────
 const GridToggle: React.FC<{
   gridCols: number;
   onChange: (cols: number) => void;
@@ -112,10 +108,8 @@ const GridToggle: React.FC<{
   </div>
 );
 
-// ─── Main component ───────────────────────────────────────────────────────────
 const Products: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { addItem } = useCart();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -124,18 +118,14 @@ const Products: React.FC = () => {
   const [gridCols, setGridCols] = useState(3);
   const [priceInput, setPriceInput] = useState(MAX_PRICE.toString());
 
-  // ── Leer filtros desde URL ─────────────────────────────────────────────────
   const activeCategory = searchParams.get("category") ?? "";
   const activeSort = (searchParams.get("sort") ??
     "relevance") as ProductFilters["sortBy"];
   const activeSearch = searchParams.get("search") ?? "";
-  // Corregido: usar siempre "isOnSale" como clave de URL
   const isOnSale = searchParams.get("isOnSale") === "true";
   const activeSizes = searchParams.getAll("size") as ProductFilters["sizes"];
   const maxPrice = Number(searchParams.get("maxPrice") ?? MAX_PRICE);
-
   const totalPages = Math.ceil(total / PAGE_LIMIT);
-
   const hasFilters = !!(
     activeCategory ||
     activeSearch ||
@@ -144,7 +134,6 @@ const Products: React.FC = () => {
     maxPrice < MAX_PRICE
   );
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
@@ -156,7 +145,7 @@ const Products: React.FC = () => {
         ...(activeSizes?.length && { sizes: activeSizes }),
         ...(maxPrice < MAX_PRICE && { maxPrice }),
         page,
-        limit: PAGE_LIMIT, // 20 productos por página
+        limit: PAGE_LIMIT,
       };
       const res = await productService.getProducts(filters);
       setProducts(res.data);
@@ -174,19 +163,16 @@ const Products: React.FC = () => {
     isOnSale,
     maxPrice,
     page,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     JSON.stringify(activeSizes),
   ]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
-
   useEffect(() => {
     setPriceInput(String(maxPrice));
   }, [maxPrice]);
 
-  // ── Helpers de URL ─────────────────────────────────────────────────────────
   const setParam = (key: string, value: string | null) => {
     const next = new URLSearchParams(searchParams);
     if (value !== null && value !== "") next.set(key, value);
@@ -212,7 +198,6 @@ const Products: React.FC = () => {
     setPage(1);
   };
 
-  // ── Cambio de página con scroll al inicio ──────────────────────────────────
   const goToPage = (newPage: number) => {
     setPage(newPage);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -220,7 +205,6 @@ const Products: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      {/* ── Sidebar ── */}
       <aside className={styles.sidebar}>
         <div className={styles.sideHeader}>
           <h2 className={styles.sideTitle}>Filtros</h2>
@@ -261,13 +245,10 @@ const Products: React.FC = () => {
 
         <div className={styles.group}>
           <p className={styles.groupTitle}>Precio máximo</p>
-
           <div className={styles.rangeWrap}>
             <div className={styles.rangeVals}>
               <span>$0</span>
-
               <input
-                // type="number"
                 className={styles.priceInput}
                 value={priceInput}
                 min={0}
@@ -276,13 +257,11 @@ const Products: React.FC = () => {
                   const val = e.target.value;
                   setPriceInput(val);
                   const num = Number(val);
-                  if (!isNaN(num)) {
+                  if (!isNaN(num))
                     setParam("maxPrice", num >= MAX_PRICE ? null : String(num));
-                  }
                 }}
               />
             </div>
-
             <input
               type="range"
               min={0}
@@ -320,7 +299,6 @@ const Products: React.FC = () => {
               <input
                 type="checkbox"
                 checked={isOnSale}
-                // Corregido: clave "isOnSale" consistente en toda la app
                 onChange={() => setParam("isOnSale", isOnSale ? null : "true")}
               />
               Solo en rebaja
@@ -329,9 +307,7 @@ const Products: React.FC = () => {
         </div>
       </aside>
 
-      {/* ── Main ── */}
       <main className={styles.main}>
-        {/* Barra superior */}
         <div className={styles.topBar}>
           <div className={styles.tabs}>
             {[{ value: "", label: "Todo" }, ...CATEGORIES].map((c) => (
@@ -346,7 +322,6 @@ const Products: React.FC = () => {
           </div>
 
           <div className={styles.barRight}>
-            {/* Tags activos */}
             {activeSearch && (
               <span className={styles.queryTag}>
                 "{activeSearch}"
@@ -356,7 +331,6 @@ const Products: React.FC = () => {
             {isOnSale && (
               <span className={styles.queryTag}>
                 Rebaja
-                {/* Corregido: clave "isOnSale" */}
                 <button onClick={() => setParam("isOnSale", null)}>✕</button>
               </span>
             )}
@@ -366,11 +340,9 @@ const Products: React.FC = () => {
                 <button onClick={() => toggleSize(s)}>✕</button>
               </span>
             ))}
-
             <span className={styles.count}>
               {total} producto{total !== 1 ? "s" : ""}
             </span>
-
             <select
               className={styles.sortSel}
               value={activeSort ?? "createdAt_asc"}
@@ -382,12 +354,10 @@ const Products: React.FC = () => {
                 </option>
               ))}
             </select>
-
             <GridToggle gridCols={gridCols} onChange={setGridCols} />
           </div>
         </div>
 
-        {/* Grid */}
         {loading ? (
           <div className={styles.loaderWrap}>
             <Loader size="lg" />
@@ -424,26 +394,14 @@ const Products: React.FC = () => {
             style={{ "--cols": gridCols } as React.CSSProperties}
           >
             {products.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                onAddToCart={(prod) =>
-                  addItem(
-                    prod,
-                    1,
-                    prod.sizes?.[0] || "M",
-                    prod.colors?.[0] || { name: "Negro", hex: "#000" },
-                  )
-                }
-              />
+              // ✅ sin onAddToCart — ProductCard maneja todo internamente
+              <ProductCard key={p.id} product={p} />
             ))}
           </div>
         )}
 
-        {/* ── Paginación mejorada ── */}
         {totalPages > 1 && !loading && (
           <div className={styles.pagination}>
-            {/* Anterior */}
             <button
               disabled={page === 1}
               onClick={() => goToPage(page - 1)}
@@ -451,17 +409,13 @@ const Products: React.FC = () => {
             >
               ← Anterior
             </button>
-
-            {/* Números de página */}
             {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((p) => {
-                // Mostrar: primera, última, página actual y sus vecinas
-                return p === 1 || p === totalPages || Math.abs(p - page) <= 1;
-              })
+              .filter(
+                (p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1,
+              )
               .reduce<(number | "...")[]>((acc, p, idx, arr) => {
-                if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                if (idx > 0 && p - (arr[idx - 1] as number) > 1)
                   acc.push("...");
-                }
                 acc.push(p);
                 return acc;
               }, [])
@@ -480,8 +434,6 @@ const Products: React.FC = () => {
                   </button>
                 ),
               )}
-
-            {/* Siguiente */}
             <button
               disabled={page >= totalPages}
               onClick={() => goToPage(page + 1)}

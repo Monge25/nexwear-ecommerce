@@ -68,11 +68,39 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
 
   const activeGroup = colorGroups[selectedColorIdx];
 
-  const availableSizes =
+  const SIZE_ORDER = [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+    "36",
+    "37",
+    "38",
+    "39",
+    "40",
+    "41",
+    "42",
+  ];
+
+  const sortSizes = (sizes: (string | undefined | null)[]) =>
+    [...sizes]
+      .filter((s): s is string => typeof s === "string" && s.length > 0)
+      .sort((a, b) => {
+        const ai = SIZE_ORDER.indexOf(a);
+        const bi = SIZE_ORDER.indexOf(b);
+        if (ai === -1 && bi === -1) return a.localeCompare(b);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+
+  const availableSizes = sortSizes(
     activeGroup?.variants
       .filter((v) => v.isActive && v.stock > 0)
-      .map((v) => v.size)
-      .filter((s, i, arr) => s && arr.indexOf(s) === i) ?? [];
+      .map((v) => v.size) ?? [],
+  );
 
   // Stock máximo de la variante seleccionada
   const maxStock = selectedSize
@@ -431,6 +459,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   const activeGroup = colorGroups[activeColorIdx];
   const activeImage = activeGroup?.imageUrl || product.imageUrl;
   const activeBg = activeGroup?.colorHex ?? "#f2f0ec";
+
+  console.log(
+    "Variants:",
+    variants.map((v) => ({ color: v.color, size: v.size, stock: v.stock })),
+  );
+  console.log(
+    "ColorGroups:",
+    colorGroups.map((g) => ({
+      color: g.color,
+      sizes: g.variants.map((v) => v.size),
+    })),
+  );
 
   const requireAuth = (reason: string, action: () => void) => {
     if (!isAuthenticated) {

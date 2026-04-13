@@ -15,7 +15,6 @@ import Loader from "@/components/ui/Loader";
 import type { Size, ProductColor, ProductVariant } from "@/types";
 import styles from "./ProductDetail.module.css";
 
-// ── Acordeón ──────────────────────────────────────────────────
 const Accordion: React.FC<{
   title: string;
   children: React.ReactNode;
@@ -40,7 +39,6 @@ const Accordion: React.FC<{
   );
 };
 
-// ── Modal guía de tallas ──────────────────────────────────────
 const SizeGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   <div className={styles.modalOverlay} onClick={onClose}>
     <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
@@ -85,7 +83,7 @@ const SizeGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
 );
 
 const ProductDetail: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug } = useParams<{ slug?: string }>();
   const navigate = useNavigate();
   const { addItem } = useCart();
   const { isAuthenticated } = useAuth();
@@ -93,7 +91,6 @@ const ProductDetail: React.FC = () => {
 
   const [zoomVisible, setZoomVisible] = useState(false);
   const [zoomStyle, setZoomStyle] = useState({});
-
   const [activeColor, setActiveColor] = useState<string | null>(null);
   const [activeSize, setActiveSize] = useState<Size | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -106,7 +103,8 @@ const ProductDetail: React.FC = () => {
   const reviewsRef = useRef<HTMLDivElement>(null);
 
   const { data: product, loading } = useFetch(
-    () => productService.getProductBySlug(slug!),
+    () =>
+      slug ? productService.getProductBySlug(slug) : Promise.resolve(null),
     [slug],
   );
   const { data: rawVariants = [] } = useFetch(
@@ -121,6 +119,34 @@ const ProductDetail: React.FC = () => {
         : Promise.resolve([]),
     [product?.id, product?.category],
   );
+
+    const SIZE_ORDER = [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+    "36",
+    "37",
+    "38",
+    "39",
+    "40",
+    "41",
+    "42",
+  ];
+
+  const sortSizes = (sizes: (string | undefined | null)[]) =>
+    [...sizes]
+      .filter((s): s is string => typeof s === "string" && s.length > 0)
+      .sort((a, b) => {
+        const ai = SIZE_ORDER.indexOf(a);
+        const bi = SIZE_ORDER.indexOf(b);
+        if (ai === -1 && bi === -1) return a.localeCompare(b);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
 
   const colorGroups = useMemo(() => {
     const map = new Map<string, ProductVariant[]>();
@@ -139,18 +165,15 @@ const ProductDetail: React.FC = () => {
   );
   const hasVariants = uniqueColors.length > 0;
 
-  // ── Lógica derivada — TODOS los useMemo ANTES de los early returns ──
   const selectedColor = activeColor ?? uniqueColors[0] ?? null;
+
   const colorVariants = useMemo(
     () => (selectedColor ? (colorGroups.get(selectedColor) ?? []) : []),
     [selectedColor, colorGroups],
   );
 
   const sizesForColor = useMemo(
-    () =>
-      colorVariants
-        .map((v) => v.size)
-        .filter((s): s is string => typeof s === "string" && s.length > 0),
+    () => sortSizes(colorVariants.map((v) => v.size)),
     [colorVariants],
   );
 
@@ -162,7 +185,6 @@ const ProductDetail: React.FC = () => {
     [selectedColor, activeSize, colorVariants],
   );
 
-  // ── Una miniatura por color ────────────────────────────────────
   const colorThumbs = useMemo(() => {
     return uniqueColors.map((colorName) => {
       const variants = colorGroups.get(colorName) ?? [];
@@ -172,7 +194,6 @@ const ProductDetail: React.FC = () => {
     });
   }, [uniqueColors, colorGroups, product?.imageUrl]);
 
-  // ── Productos relacionados filtrados por categoría ────────────
   const relatedProducts = useMemo(
     () => (Array.isArray(related) ? related : []),
     [related],
@@ -187,27 +208,13 @@ const ProductDetail: React.FC = () => {
   }, [relatedProducts, product?.category]);
 
   const relatedTitle = useMemo(() => {
-    const cat = product?.category;
-    if (cat === "mujer")
-      return (
-        <>
-          También te puede gustar
-        </>
-      );
-    if (cat === "hombre")
-      return (
-        <>
-          También te puede gustar
-        </>
-      );
     return (
       <>
         También te puede <em>gustar</em>
       </>
     );
-  }, [product?.category]);
+  }, []);
 
-  // ── Early returns DESPUÉS de todos los hooks ──────────────────
   if (loading) return <Loader fullPage />;
   if (!product)
     return (
@@ -219,7 +226,6 @@ const ProductDetail: React.FC = () => {
 
   const displayImage =
     colorVariants.find((v) => v.imageUrl)?.imageUrl ?? product.imageUrl ?? "";
-
   const selectedVariant = matchedVariant ?? colorVariants[0];
   const displayPrice = selectedVariant?.finalPrice ?? product.price;
   const displayOriginalPrice =
@@ -262,14 +268,11 @@ const ProductDetail: React.FC = () => {
       setAuthOpen(true);
       return;
     }
-
     if (displayStock <= 0) return;
-
     if (quantity > displayStock) {
       setQuantity(displayStock);
       return;
     }
-
     if (displaySizes.length > 0 && !activeSize) {
       setSizeError(true);
       return;
@@ -281,9 +284,7 @@ const ProductDetail: React.FC = () => {
     const color: ProductColor = selectedColor
       ? { name: selectedColor, hex: selectedHex }
       : baseColors[0];
-
     const size: Size = activeSize ?? (displaySizes[0] as Size) ?? "M";
-
     const variant = rawVariants?.find(
       (v) => v.color === color.name && v.size === size,
     );
@@ -311,7 +312,7 @@ const ProductDetail: React.FC = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // fallback silencioso
+      /* silencioso */
     }
   };
 
@@ -330,7 +331,6 @@ const ProductDetail: React.FC = () => {
       <div className={styles.inner}>
         {/* ── Galería ── */}
         <div className={styles.gallery}>
-          {/* Imagen principal con zoom */}
           <div
             className={styles.mainImg}
             style={{ background: selectedHex }}
@@ -365,7 +365,6 @@ const ProductDetail: React.FC = () => {
             )}
           </div>
 
-          {/* ── Miniaturas por color ── */}
           {colorThumbs.length > 1 && (
             <div className={styles.thumbs}>
               {colorThumbs.map(({ colorName, imageUrl }) => (
@@ -482,7 +481,7 @@ const ProductDetail: React.FC = () => {
             style={{ height: 1, background: "var(--g100)", marginBottom: 22 }}
           />
 
-          {/* ── Selector de color ── */}
+          {/* Color */}
           {hasVariants ? (
             <div className={styles.optSection}>
               <p className={styles.optLabel}>
@@ -525,7 +524,7 @@ const ProductDetail: React.FC = () => {
             )
           )}
 
-          {/* ── Tallas ── */}
+          {/* Tallas */}
           <div className={styles.optSection}>
             <p className={styles.optLabel}>
               Talla
@@ -561,7 +560,7 @@ const ProductDetail: React.FC = () => {
             )}
           </div>
 
-          {/* ── Cantidad ── */}
+          {/* Cantidad */}
           <div className={styles.optSection}>
             <p className={styles.optLabel}>Cantidad</p>
             <div className={styles.qtyRow}>
@@ -692,7 +691,6 @@ const ProductDetail: React.FC = () => {
                 {product.description || "Sin descripción disponible."}
               </p>
             </Accordion>
-
             {(product.material || product.care || product.origin) && (
               <Accordion title="Materiales y cuidados">
                 <div className={styles.accordionDetails}>
@@ -717,7 +715,6 @@ const ProductDetail: React.FC = () => {
                 </div>
               </Accordion>
             )}
-
             <Accordion title="Envíos y devoluciones">
               <div className={styles.accordionText}>
                 <p>
@@ -736,7 +733,6 @@ const ProductDetail: React.FC = () => {
                 </p>
               </div>
             </Accordion>
-
             {displayStock > 0 && (
               <Accordion title="Disponibilidad">
                 <p className={styles.accordionText}>
@@ -750,23 +746,13 @@ const ProductDetail: React.FC = () => {
         </div>
       </div>
 
+      {/* Relacionados — sin onAddToCart para evitar doble agregado */}
       {filteredRelated.length > 0 && (
         <section className={styles.related}>
           <h2 className={styles.relTitle}>{relatedTitle}</h2>
           <div className={styles.relGrid}>
             {filteredRelated.slice(0, 4).map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                onAddToCart={(prod) =>
-                  addItem(
-                    { ...prod, variants: rawVariants ?? [] },
-                    1,
-                    (prod.sizes?.[0] as Size) ?? "M",
-                    prod.colors?.[0] ?? { name: "Negro", hex: "#0a0a0a" },
-                  )
-                }
-              />
+              <ProductCard key={p.id} product={p} />
             ))}
           </div>
         </section>

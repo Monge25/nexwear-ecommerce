@@ -12,19 +12,41 @@ import env from "@/config/environment";
 import { PagedResult } from "@/types/pagination";
 import { LayoutDashboard, Package, ShoppingBag, Users } from "lucide-react";
 import { Star } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const BASE = env.API_BASE_URL;
 const BASE_URL = env.AUTH_BASE_URL;
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: "Pendiente",
-  processing: "En proceso",
-  shipped: "Enviado",
-  delivered: "Entregado",
-  cancelled: "Cancelado",
-  paid: "Confirmado", // ← pagado = Confirmado
+  Pending: "Pendiente",
+  Processing: "En proceso",
+  Shipped: "Enviado",
+  Delivered: "Entregado",
+  Cancelled: "Cancelado",
+  Paid: "Confirmado",
 };
+
+const CHART_COLORS = [
+  "#0a0a0a",
+  "#c9a84c",
+  "#6e6e6e",
+  "#d4b896",
+  "#4a4a4a",
+  "#9a9a9a",
+];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ProductFormData = Partial<Product> & { imageFile?: File | null };
@@ -114,27 +136,6 @@ function useDebounce<T>(value: T, delay = 400): T {
   }, [value, delay]);
   return debouncedValue;
 }
-
-// ─── Bar Chart ────────────────────────────────────────────────────────────────
-const BarChart: React.FC<{ data: { month: string; revenue: number }[] }> = ({
-  data,
-}) => {
-  const max = Math.max(...data.map((d) => d.revenue), 1);
-  return (
-    <div className={styles.barChartWrap}>
-      {data.map((d) => (
-        <div key={d.month} className={styles.barGroup}>
-          <div
-            className={styles.barFill}
-            style={{ height: `${Math.round((d.revenue / max) * 120)}px` }}
-            title={formatPrice(d.revenue)}
-          />
-          <div className={styles.barLbl}>{d.month}</div>
-        </div>
-      ))}
-    </div>
-  );
-};
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
 const Pagination: React.FC<{
@@ -429,38 +430,24 @@ const AdminProductForm: React.FC<{
 
 // ─── Dashboard Section ────────────────────────────────────────────────────────
 const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
-  const { data: stats, loading: sl } = useFetch(
-    useCallback(
-      () => apiCall<StatsData>("/admin/stats", token).catch(() => null),
-      [token],
-    ),
-    [token],
-  );
-
-  // ── Órdenes: usa /Orders (endpoint real de usuarios) ──
   const { data: ordersRes, loading: ol } = useFetch(
     useCallback(
       () =>
-        apiCall<any>("/Orders?page=1&pageSize=50", token).catch(() => ({
-          items: [],
-          data: [],
+        apiCall<any>("/Admin/orders?page=1&pageSize=50", token).catch(() => ({
+          orders: [],
           total: 0,
-          totalCount: 0,
         })),
       [token],
     ),
     [token],
   );
 
-  // ── Usuarios: usa /Users (endpoint real) ──
   const { data: usersRes, loading: ul } = useFetch(
     useCallback(
       () =>
-        apiCall<any>("/Users?page=1&limit=100", token).catch(() => ({
-          items: [],
-          data: [],
+        apiCall<any>("/Admin/users?page=1&pageSize=100", token).catch(() => ({
+          users: [],
           total: 0,
-          totalCount: 0,
         })),
       [token],
     ),
@@ -485,49 +472,55 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
     [token],
   );
 
-  if (sl || ol || ul || pl) return <Loader />;
+  if (ol || ul || pl) return <Loader />;
 
-  // Extracción flexible: soporta { items }, { data } o array directo
-  const orders: Order[] =
-    (ordersRes as any)?.items ??
-    (ordersRes as any)?.data ??
-    (Array.isArray(ordersRes) ? ordersRes : []);
+  const orders: Order[] = (ordersRes as any)?.orders ?? [];
+  const users: any[] = (usersRes as any)?.users ?? [];
+  const totalProducts = productsRes?.totalCount ?? 0;
 
-  const users: User[] =
-    (usersRes as any)?.items ??
-    (usersRes as any)?.data ??
-    (Array.isArray(usersRes) ? usersRes : []);
+  const totalRevenue = orders.reduce((a, o) => a + (o.total ?? 0), 0);
+  const totalOrders = (ordersRes as any)?.total ?? orders.length;
+  const totalUsers = (usersRes as any)?.total ?? users.length;
 
-  const products = productsRes?.items ?? [];
+  // Ingresos por mes
+  const revenueByMonth = orders.reduce((acc: Record<string, number>, o) => {
+    if (!o.createdAt) return acc;
+    const month = new Date(o.createdAt).toLocaleDateString("es-MX", {
+      month: "short",
+      year: "2-digit",
+    });
+    acc[month] = (acc[month] ?? 0) + (o.total ?? 0);
+    return acc;
+  }, {});
+  const revenueChartData = Object.entries(revenueByMonth).map(
+    ([month, revenue]) => ({
+      month,
+      revenue: Math.round(revenue as number),
+    }),
+  );
 
-  const totalRevenue =
-    stats?.totalRevenue ??
-    (orders as Order[]).reduce((a: number, o: Order) => a + (o.total ?? 0), 0);
-  const totalOrders =
-    stats?.totalOrders ??
-    (ordersRes as any)?.totalCount ??
-    (ordersRes as any)?.total ??
-    (orders as Order[]).length;
-  const totalUsers =
-    stats?.totalUsers ??
-    (usersRes as any)?.totalCount ??
-    (usersRes as any)?.total ??
-    (users as User[]).length;
-  const totalProducts = stats?.totalProducts ?? productsRes?.totalCount ?? 0;
-
-  const recentOrders: Order[] =
-    stats?.recentOrders ?? (orders as Order[]).slice(0, 8);
-
-  // Agrupar pedidos por estado
-  const byStatus: Record<string, number> = {};
-  (orders as Order[]).forEach((o: Order) => {
+  // Pedidos por estado para la dona
+  const byStatus = orders.reduce((acc: Record<string, number>, o) => {
     const s = o.status ?? "unknown";
-    byStatus[s] = (byStatus[s] ?? 0) + 1;
-  });
-  const statusMap = stats?.ordersByStatus ?? byStatus;
+    acc[s] = (acc[s] ?? 0) + 1;
+    return acc;
+  }, {});
+  const statusChartData = Object.entries(byStatus).map(([name, value]) => ({
+    name: STATUS_LABELS[name] ?? name,
+    value,
+  }));
+
+  // Pedidos recientes ordenados por fecha
+  const recentOrders = [...orders]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .slice(0, 8);
 
   return (
     <>
+      {/* KPIs */}
       <div className={styles.kpiGrid}>
         {[
           {
@@ -558,21 +551,52 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
         ))}
       </div>
 
-      {(stats?.revenueByMonth?.length ?? 0) > 0 && (
+      {/* Gráfica de ingresos por mes */}
+      {revenueChartData.length > 0 && (
         <div className={styles.card}>
           <p className={styles.cardTitle}>Ingresos por Mes</p>
-          <BarChart data={stats!.revenueByMonth} />
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart
+              data={revenueChartData}
+              margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9a9a9a" }} />
+              <YAxis
+                tick={{ fontSize: 11, fill: "#9a9a9a" }}
+                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+              />
+              <Tooltip
+                formatter={(value) => [formatPrice(Number(value)), "Ingresos"]}
+                contentStyle={{
+                  fontSize: 12,
+                  borderRadius: 8,
+                  border: "1px solid #e8e8e8",
+                }}
+              />
+
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="#c9a84c"
+                strokeWidth={2}
+                dot={{ fill: "#c9a84c", r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       )}
 
       <div className={styles.grid2}>
+        {/* Pedidos recientes */}
         <div className={styles.card}>
           <p className={styles.cardTitle}>Pedidos Recientes</p>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th>Cliente</th>
                   <th>Estado</th>
                   <th>Total</th>
                 </tr>
@@ -581,8 +605,8 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
                 {recentOrders.length ? (
                   recentOrders.map((o) => (
                     <tr key={String(o.id)}>
-                      <td className={styles.tdNum}>
-                        #{String(o.id).slice(-6).toUpperCase()}
+                      <td style={{ fontSize: 12 }}>
+                        {(o as any).customerName ?? "—"}
                       </td>
                       <td>
                         <StatusBadge status={o.status} />
@@ -604,62 +628,46 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
           </div>
         </div>
 
+        {/* Dona de pedidos por estado */}
         <div className={styles.card}>
           <p className={styles.cardTitle}>Pedidos por Estado</p>
-          {Object.keys(statusMap).length === 0 ? (
+          {statusChartData.length === 0 ? (
             <p style={{ fontSize: 13, color: "#9a9a9a" }}>Sin datos</p>
           ) : (
-            Object.entries(statusMap).map(([s, cnt]) => {
-              const pct = totalOrders
-                ? Math.round(((cnt as number) / totalOrders) * 100)
-                : 0;
-              return (
-                <div key={s} className={styles.statusRow}>
-                  <div className={styles.statusRowHeader}>
-                    <StatusBadge status={s} />
-                    <span className={styles.statusCnt}>
-                      {cnt as number} ({pct}%)
-                    </span>
-                  </div>
-                  <div className={styles.statusBarBg}>
-                    <div
-                      className={styles.statusBarFill}
-                      style={{ width: `${pct}%` }}
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={statusChartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={85}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {statusChartData.map((_, index) => (
+                    <Cell
+                      key={index}
+                      fill={CHART_COLORS[index % CHART_COLORS.length]}
                     />
-                  </div>
-                </div>
-              );
-            })
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    fontSize: 12,
+                    borderRadius: 8,
+                    border: "1px solid #e8e8e8",
+                  }}
+                />
+                <Legend
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: 12 }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           )}
         </div>
-
-        {(stats?.topProducts?.length ?? 0) > 0 && (
-          <div className={`${styles.card} ${styles.colSpan2}`}>
-            <p className={styles.cardTitle}>Productos Más Vendidos</p>
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Producto</th>
-                    <th>Vendidos</th>
-                    <th>Ingresos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats!.topProducts.map((p) => (
-                    <tr key={String(p.productId)}>
-                      <td>{p.productName}</td>
-                      <td className={styles.tdNum}>{p.sold}</td>
-                      <td className={styles.tdGold}>
-                        {formatPrice(p.revenue)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </div>
     </>
   );
@@ -714,7 +722,7 @@ const ProductsSection: React.FC<{
   useEffect(() => {
     products.forEach((p) => {
       if (!Array.isArray(p.variants)) return;
-      p.variants.forEach((v) => {
+      p.variants.forEach((v: any) => {
         if (v.stock < 0) v.stock = 0;
       });
     });
@@ -1106,36 +1114,35 @@ const OrdersSection: React.FC<{
   const fetchOrders = useCallback(
     () =>
       apiCall<any>(
-        `/Orders?page=${page}&pageSize=20${statusFilter ? `&status=${statusFilter}` : ""}`,
+        `/Admin/orders?page=${page}&pageSize=20${statusFilter ? `&status=${statusFilter}` : ""}`,
         token,
       ),
     [page, statusFilter, token],
   );
 
-  const { data, loading } = useFetch(fetchOrders, [page, statusFilter, token]);
+  const { data, loading, refetch } = useFetch(fetchOrders, [
+    page,
+    statusFilter,
+    token,
+  ]);
 
-  // Extracción flexible: { items }, { data } o array directo
   const orders: Order[] =
+    (data as any)?.orders ??
     (data as any)?.items ??
     (data as any)?.data ??
     (Array.isArray(data) ? data : []);
+
   const total: number =
     (data as any)?.totalCount ?? (data as any)?.total ?? orders.length;
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
-      // Intenta PATCH /Orders/{id}/status primero
-      await apiCall(`/Orders/${orderId}/status`, token, {
+      await apiCall(`/Admin/orders/${orderId}/status`, token, {
         method: "PATCH",
         body: JSON.stringify({ status: newStatus }),
-      }).catch(() =>
-        // Fallback: PUT /Orders/{id}
-        apiCall(`/Orders/${orderId}`, token, {
-          method: "PUT",
-          body: JSON.stringify({ status: newStatus }),
-        }),
-      );
+      });
       show("Estado actualizado");
+      refetch();
     } catch (e: any) {
       show("Error: " + e.message, "error");
     }
@@ -1184,20 +1191,18 @@ const OrdersSection: React.FC<{
                     orders.map((o) => (
                       <tr key={String(o.id)}>
                         <td className={styles.tdNum} style={{ fontSize: 12 }}>
-                          #{String(o.id).slice(-8).toUpperCase()}
+                          #
+                          {String((o as any).orderNumber ?? o.id)
+                            .slice(-10)
+                            .toUpperCase()}
                         </td>
                         <td className={styles.tdNum}>
                           {o.createdAt
                             ? new Date(o.createdAt).toLocaleDateString("es-MX")
                             : "—"}
                         </td>
-                        <td>
-                          {(o as any).user?.firstName ??
-                            (o.shippingAddress as any)?.firstName ??
-                            "—"}{" "}
-                          {(o as any).user?.lastName ??
-                            (o.shippingAddress as any)?.lastName ??
-                            ""}
+                        <td style={{ fontSize: 12 }}>
+                          {(o as any).customerName ?? "—"}
                         </td>
                         <td className={styles.tdGold}>
                           {formatPrice(o.total ?? 0)}
@@ -1208,6 +1213,7 @@ const OrdersSection: React.FC<{
                         <td>
                           <select
                             className={styles.statusSel}
+                            key={o.status}
                             defaultValue={o.status}
                             onChange={(e) =>
                               handleStatusChange(String(o.id), e.target.value)
@@ -1262,24 +1268,25 @@ const UsersSection: React.FC<{
   const buildQuery = useCallback(() => {
     const p = new URLSearchParams();
     p.set("page", String(page));
-    p.set("limit", "20");
+    p.set("pageSize", "20");
     if (roleFilter !== "all") p.set("role", roleFilter);
     if (debouncedSearch) p.set("search", debouncedSearch);
     return p.toString();
   }, [page, roleFilter, debouncedSearch]);
 
   const fetchUsers = useCallback(
-    () => apiCall<any>(`/Users?${buildQuery()}`, token),
+    () => apiCall<any>(`/Admin/users?${buildQuery()}`, token),
     [buildQuery, token],
   );
 
   const { data, loading, refetch } = useFetch(fetchUsers, [buildQuery, token]);
 
-  // Extracción flexible
   const users: User[] =
+    (data as any)?.users ??
     (data as any)?.items ??
     (data as any)?.data ??
     (Array.isArray(data) ? data : []);
+
   const total: number =
     (data as any)?.totalCount ?? (data as any)?.total ?? users.length;
 
@@ -1290,7 +1297,7 @@ const UsersSection: React.FC<{
   const handleRoleChange = async (id: string | number, role: string) => {
     setUpdating(id);
     try {
-      await apiCall(`/admin/users/${id}/role`, token, {
+      await apiCall(`/Admin/users/${id}/role`, token, {
         method: "PATCH",
         body: JSON.stringify({ role }),
       });
@@ -1404,7 +1411,7 @@ const UsersSection: React.FC<{
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th style={{ paddingLeft: 20 }}>Usuario</th>
+                    <th>Usuario</th>
                     <th>Email</th>
                     <th>Registro</th>
                     <th>Rol</th>
@@ -1414,7 +1421,7 @@ const UsersSection: React.FC<{
                 <tbody>
                   {users.length ? (
                     users.map((u) => {
-                      const isAdmin = u.role === "Admin";
+                      const isAdmin = u.role?.toLowerCase() === "admin";
                       const initials =
                         `${u.firstName?.charAt(0) ?? ""}${u.lastName?.charAt(0) ?? ""}`.toUpperCase();
                       const isUpdating = updating === u.id;
@@ -1556,7 +1563,6 @@ const ReviewsSection: React.FC<{
         method: "PUT",
         body: JSON.stringify({ approved: approve }),
       });
-
       show(approve ? "Reseña aprobada" : "Reseña rechazada");
       refetch();
     } catch (e: any) {

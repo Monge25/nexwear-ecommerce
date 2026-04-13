@@ -7,17 +7,9 @@ import styles from "./Navbar.module.css";
 import { ROUTES } from "@/utils/constants";
 import { useWishlist } from "@/context/WishlistContext";
 import {
-  Search,
-  X,
-  User,
-  Heart,
-  ShoppingBag,
-  ShieldCheck,
-  Clock,
-  ArrowRight,
+  Search, X, User, Heart, ShoppingBag, ShieldCheck, Clock, ArrowRight,
 } from "lucide-react";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
 interface Hit {
   id: number | string;
   name: string;
@@ -30,16 +22,12 @@ interface Hit {
   isNew?: boolean;
 }
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
 const BASE        = "https://nexwearapi-production.up.railway.app/api";
 const HISTORY_KEY = "nx_search_history";
 const MAX_HISTORY = 5;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n: number) =>
-  new Intl.NumberFormat("es-MX", {
-    style: "currency", currency: "MXN", maximumFractionDigits: 0,
-  }).format(n);
+  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(n);
 
 function getHistory(): string[] {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]"); }
@@ -52,8 +40,7 @@ function saveToHistory(term: string) {
 }
 
 function removeFromHistory(term: string) {
-  const next = getHistory().filter((t) => t !== term);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(getHistory().filter((t) => t !== term)));
 }
 
 function Highlight({ text, query }: { text: string; query: string }) {
@@ -80,7 +67,6 @@ function useDebounce<T>(value: T, ms: number): T {
   return dv;
 }
 
-// ─── Search overlay ───────────────────────────────────────────────────────────
 interface SearchOverlayProps {
   onClose: () => void;
 }
@@ -96,17 +82,10 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
 
   const dq = useDebounce(query, 300);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
   useEffect(() => {
-    if (!dq.trim()) {
-      setHits([]);
-      setLoading(false);
-      setActive(-1);
-      return;
-    }
+    if (!dq.trim()) { setHits([]); setLoading(false); setActive(-1); return; }
 
     setLoading(true);
 
@@ -115,20 +94,21 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
       .then((data) => {
         const list: Hit[] = Array.isArray(data)
           ? data
-          : Array.isArray(data?.data)
-            ? data.data
-            : Array.isArray(data?.items)
-              ? data.items
-              : [];
+          : Array.isArray(data?.data) ? data.data
+          : Array.isArray(data?.items) ? data.items
+          : [];
 
         const q = dq.toLowerCase();
 
         const filtered = list
-          .filter(
-            (p) =>
+          .filter((p) => {
+            // busca por nombre, categoría o id
+            return (
               p.name?.toLowerCase().includes(q) ||
-              p.category?.toLowerCase().includes(q),
-          )
+              p.category?.toLowerCase().includes(q) ||
+              String(p.id).toLowerCase().includes(q)
+            );
+          })
           .sort((a, b) => {
             const aStarts = a.name.toLowerCase().startsWith(q);
             const bStarts = b.name.toLowerCase().startsWith(q);
@@ -144,9 +124,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
   }, [dq]);
 
   useEffect(() => {
-    const fn = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", fn);
     return () => document.removeEventListener("keydown", fn);
   }, [onClose]);
@@ -158,13 +136,19 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
     };
   }, []);
 
-  const goToProduct = (slug: string, term: string) => {
-    if (term.trim()) saveToHistory(term.trim());
-    setHistory(getHistory());
-    navigate(`/productos/${slug}`);
+  const goToProduct = (hit: Hit, term: string) => {
+    console.log("Producto seleccionado:", hit);
+
+    if (term.trim()) {
+      saveToHistory(term.trim());
+      setHistory(getHistory());
+    }
+
+    if (!hit?.slug && !hit?.id) return;
+
+    navigate(`/productos/${hit.slug ?? hit.id}`);
     onClose();
   };
-
   const goToResults = (term = query) => {
     const t = term.trim();
     if (!t) return;
@@ -176,21 +160,14 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeIdx >= 0 && hits[activeIdx])
-      goToProduct(hits[activeIdx].slug, query);
+    if (activeIdx >= 0 && hits[activeIdx]) goToProduct(hits[activeIdx], query);
     else goToResults();
   };
 
   const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const total = hits.length + (query.trim() ? 1 : 0);
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActive((i) => Math.min(i + 1, total - 1));
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActive((i) => Math.max(i - 1, -1));
-    }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, total - 1)); }
+    if (e.key === "ArrowUp")   { e.preventDefault(); setActive((i) => Math.max(i - 1, -1)); }
   };
 
   const removeHistory = (term: string, e: React.MouseEvent) => {
@@ -202,14 +179,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
   const showHistory = !query.trim() && history.length > 0;
   const showPopular = !query.trim() && history.length === 0;
   const showResults = query.trim().length > 0;
-  const popular = [
-    "Blazer",
-    "Lino",
-    "Vestidos",
-    "Abrigos",
-    "Cachemir",
-    "Hombre",
-  ];
+  const popular = ["Blazer", "Lino", "Vestidos", "Abrigos", "Cachemir", "Hombre"];
 
   return (
     <>
@@ -228,25 +198,11 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
             spellCheck={false}
           />
           {query && (
-            <button
-              type="button"
-              className={styles.searchClear}
-              onClick={() => {
-                setQuery("");
-                setHits([]);
-                inputRef.current?.focus();
-              }}
-            >
+            <button type="button" className={styles.searchClear} onClick={() => { setQuery(""); setHits([]); inputRef.current?.focus(); }}>
               <X size={13} strokeWidth={1.8} />
             </button>
           )}
-          <button
-            type="button"
-            className={styles.searchClose}
-            onClick={onClose}
-          >
-            Cerrar
-          </button>
+          <button type="button" className={styles.searchClose} onClick={onClose}>Cerrar</button>
         </form>
 
         <div className={styles.searchBody}>
@@ -254,22 +210,10 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
             <div className={styles.searchSection}>
               <p className={styles.searchSectionTitle}>Búsquedas recientes</p>
               {history.map((term) => (
-                <div
-                  key={term}
-                  className={styles.historyRow}
-                  onClick={() => goToResults(term)}
-                >
-                  <Clock
-                    className={styles.historyIcon}
-                    size={13}
-                    strokeWidth={1.4}
-                  />
+                <div key={term} className={styles.historyRow} onClick={() => goToResults(term)}>
+                  <Clock className={styles.historyIcon} size={13} strokeWidth={1.4} />
                   <span>{term}</span>
-                  <button
-                    className={styles.historyRemove}
-                    onClick={(e) => removeHistory(term, e)}
-                    title="Eliminar"
-                  >
+                  <button className={styles.historyRemove} onClick={(e) => removeHistory(term, e)} title="Eliminar">
                     <X size={10} strokeWidth={2} />
                   </button>
                 </div>
@@ -282,14 +226,7 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
               <p className={styles.searchSectionTitle}>Tendencias</p>
               <div className={styles.popularChips}>
                 {popular.map((t) => (
-                  <button
-                    key={t}
-                    className={styles.popularChip}
-                    onClick={() => {
-                      setQuery(t);
-                      inputRef.current?.focus();
-                    }}
-                  >
+                  <button key={t} className={styles.popularChip} onClick={() => { setQuery(t); inputRef.current?.focus(); }}>
                     {t}
                   </button>
                 ))}
@@ -307,35 +244,27 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
               ) : hits.length === 0 ? (
                 <div className={styles.searchEmpty}>
                   <Search size={36} strokeWidth={1} style={{ opacity: 0.15 }} />
-                  <p>
-                    Sin resultados para <strong>"{query}"</strong>
-                  </p>
+                  <p>Sin resultados para <strong>"{query}"</strong></p>
                   <span>Prueba con otra palabra clave</span>
                 </div>
               ) : (
                 <>
                   <p className={styles.searchSectionTitle}>
-                    {hits.length} resultado{hits.length !== 1 ? "s" : ""} para "
-                    {query}"
+                    {hits.length} resultado{hits.length !== 1 ? "s" : ""} para "{query}"
                   </p>
                   {hits.map((hit, i) => {
                     const thumb = hit.imageUrl ?? "";
-                    const color =
-                      hit.colors?.[0]?.hex ??
-                      hit.colors?.[0]?.color ??
-                      "#f0f0f0";
+                    const color = hit.colors?.[0]?.hex ?? hit.colors?.[0]?.color ?? "#f0f0f0";
                     const isActive = i === activeIdx;
                     return (
                       <div
                         key={String(hit.id)}
                         className={`${styles.searchHit} ${isActive ? styles.searchHitActive : ""}`}
-                        onClick={() => goToProduct(hit.slug, query)}
+                        onClick={() => goToProduct(hit, query)}
                         onMouseEnter={() => setActive(i)}
+                        style={{ cursor: "pointer" }}
                       >
-                        <div
-                          className={styles.searchThumb}
-                          style={{ background: thumb ? undefined : color }}
-                        >
+                        <div className={styles.searchThumb} style={{ background: thumb ? undefined : color }}>
                           {thumb && <img src={thumb} alt={hit.name} />}
                         </div>
                         <div className={styles.searchHitInfo}>
@@ -345,21 +274,11 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
                           <p className={styles.searchHitCat}>{hit.category}</p>
                         </div>
                         <div className={styles.searchHitRight}>
-                          {hit.isSale && (
-                            <span className={styles.tagSale}>Rebaja</span>
-                          )}
-                          {hit.isNew && (
-                            <span className={styles.tagNew}>Nuevo</span>
-                          )}
-                          <span className={styles.searchHitPrice}>
-                            {fmt(hit.price)}
-                          </span>
+                          {hit.isSale && <span className={styles.tagSale}>Rebaja</span>}
+                          {hit.isNew && <span className={styles.tagNew}>Nuevo</span>}
+                          <span className={styles.searchHitPrice}>{fmt(hit.price)}</span>
                         </div>
-                        <ArrowRight
-                          className={styles.searchHitArrow}
-                          size={12}
-                          strokeWidth={1.5}
-                        />
+                        <ArrowRight className={styles.searchHitArrow} size={12} strokeWidth={1.5} />
                       </div>
                     );
                   })}
@@ -381,11 +300,10 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
   );
 };
 
-// ─── Navbar ───────────────────────────────────────────────────────────────────
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled]     = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
+  const [authOpen, setAuthOpen]     = useState(false);
   const navigate = useNavigate();
 
   const { itemCount, openCart } = useCart();
@@ -404,101 +322,52 @@ const Navbar: React.FC = () => {
 
   return (
     <>
-      {/* Top bar */}
       <div className={styles.topbar}>
         <div className={styles.topbarInner}>
-          <span>
-            Envío gratis en pedidos +<em>$150</em>
-          </span>
+          <span>Envío gratis en pedidos +<em>$150</em></span>
           <span className={styles.sep}>·</span>
-          <span>
-            Código <em>NEXWEAR15</em> — 15% descuento
-          </span>
+          <span>Código <em>NEXWEAR15</em> — 15% descuento</span>
           <span className={styles.sep}>·</span>
-          <span>
-            Devoluciones gratis <em>30 días</em>
-          </span>
+          <span>Devoluciones gratis <em>30 días</em></span>
         </div>
       </div>
 
-      {/* Nav */}
       <nav className={`${styles.nav} ${scrolled ? styles.solid : ""}`}>
-        <Link to="/" className={styles.logo}>
-          Nexwear
-        </Link>
+        <Link to="/" className={styles.logo}>Nexwear</Link>
 
         <ul className={styles.links}>
-          <li>
-            <Link to="/productos?category=mujer">Mujer</Link>
-          </li>
-          <li>
-            <Link to="/productos?category=hombre">Hombre</Link>
-          </li>
-          <li>
-            <Link to="/productos">Colección</Link>
-          </li>
-          <li>
-            <Link to="/productos?category=exteriores">Exteriores</Link>
-          </li>
-          <li>
-            <Link to="/productos?isSale=true" className={styles.saleLink}>
-              Rebajas
-            </Link>
-          </li>
+          <li><Link to="/productos?category=mujer">Mujer</Link></li>
+          <li><Link to="/productos?category=hombre">Hombre</Link></li>
+          <li><Link to="/productos">Colección</Link></li>
+          <li><Link to="/productos?category=exteriores">Exteriores</Link></li>
+          <li><Link to="/productos?isSale=true" className={styles.saleLink}>Rebajas</Link></li>
         </ul>
 
         <div className={styles.actions}>
-          {/* Buscar */}
-          <button
-            className={styles.iconBtn}
-            onClick={() => setSearchOpen(true)}
-            aria-label="Buscar"
-          >
+          <button className={styles.iconBtn} onClick={() => setSearchOpen(true)} aria-label="Buscar">
             <Search size={16} strokeWidth={1.5} />
           </button>
 
-          {/* Perfil */}
           <button
             className={styles.iconBtn}
             aria-label="Cuenta"
-            onClick={() => {
-              if (isAuthenticated) {
-                navigate(ROUTES.PROFILE);
-              } else {
-                setAuthOpen(true);
-              }
-            }}
+            onClick={() => { if (isAuthenticated) navigate(ROUTES.PROFILE); else setAuthOpen(true); }}
           >
             <User size={16} strokeWidth={1.5} />
           </button>
 
-          {/* Wishlist */}
-          <button
-            className={styles.iconBtn}
-            onClick={openWishlist}
-            aria-label="Favoritos"
-          >
+          <button className={styles.iconBtn} onClick={openWishlist} aria-label="Favoritos">
             <Heart size={17} strokeWidth={1.5} />
             {count > 0 && <span className={styles.badge}>{count}</span>}
           </button>
 
-          {/* Admin */}
           {isAdmin && (
-            <Link
-              to="/Admin"
-              className={styles.iconBtn}
-              aria-label="Dashboard Admin"
-            >
+            <Link to="/Admin" className={styles.iconBtn} aria-label="Dashboard Admin">
               <ShieldCheck size={16} strokeWidth={1.5} />
             </Link>
           )}
 
-          {/* Carrito */}
-          <button
-            className={styles.cartBtn}
-            onClick={openCart}
-            aria-label="Bolsa"
-          >
+          <button className={styles.cartBtn} onClick={openCart} aria-label="Bolsa">
             <ShoppingBag size={16} strokeWidth={1.5} />
             <span className={styles.cartLabel}>Bolsa</span>
             {itemCount > 0 && <span className={styles.badge}>{itemCount}</span>}

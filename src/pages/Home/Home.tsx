@@ -108,7 +108,7 @@ const ProductCarousel: React.FC<CarouselProps> = ({
       >
         {products.map((p) => (
           <div key={p.id} className={styles.carouselCard}>
-            <ProductCard product={p} onAddToCart={onAddToCart} />
+            <ProductCard product={p}/>
           </div>
         ))}
       </div>
@@ -291,7 +291,6 @@ const Home: React.FC = () => {
               <ProductCard
                 key={p.id}
                 product={p}
-                onAddToCart={handleQuickAdd}
               />
             ))}
           </div>

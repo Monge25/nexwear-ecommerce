@@ -10,7 +10,6 @@
   overflow: hidden;
   background: #f0ede8;
   color: #111;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 14px;
   position: sticky;
   top: var(--nav-h, 64px);
@@ -30,7 +29,9 @@
   border-right: 3px solid #b5914c;
 }
 
-.sidebar::-webkit-scrollbar { display: none }
+.sidebar::-webkit-scrollbar {
+  display: none
+}
 
 .sidebarBrand {
   padding: 26px 22px 22px;
@@ -125,7 +126,9 @@
   opacity: .4;
 }
 
-.navBtnActive .navIcon { opacity: 1 }
+.navBtnActive .navIcon {
+  opacity: 1
+}
 
 .sidebarFoot {
   padding: 14px 12px 22px;
@@ -158,7 +161,7 @@
 .main {
   flex: 1;
   overflow-y: auto;
-  padding: 32px 40px 72px;
+  padding: 36px 44px 72px;
   background: #f0ede8;
   height: 100%;
 }
@@ -176,28 +179,28 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 22px;
-  padding-bottom: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
   border-bottom: 1px solid #dedad4;
 }
 
 .tabHeader .pageTitle {
-  margin-bottom: 0
+  margin-bottom: 0;
 }
 
 /* ─── KPI Grid ─── */
 .kpiGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 18px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .kpiCard {
   background: #fff;
   border: none;
   border-radius: 8px;
-  padding: 20px 22px;
+  padding: 22px 24px;
   transition: box-shadow .2s, transform .2s;
   cursor: default;
   position: relative;
@@ -238,23 +241,15 @@
   background: #e24b4a
 }
 
-.kpiIcon {
-  font-size: 20px;
-  margin-bottom: 14px;
-  display: block;
-  opacity: .5;
-}
-
 .kpiLabel {
   font-size: 9px;
   letter-spacing: .2em;
   text-transform: uppercase;
   color: #b0a99e;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
 }
 
 .kpiValue {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 30px;
   font-weight: 400;
   color: #0a0a0a;
@@ -263,19 +258,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-.kpiSub {
-  font-size: 10.5px;
-  color: #c0bdb5;
-  margin-top: 6px;
-  letter-spacing: .03em;
-}
-
 /* ─── Cards ─── */
 .card {
   background: #fff;
   border-radius: 8px;
-  padding: 22px 24px;
-  margin-bottom: 12px;
+  padding: 24px 26px;
+  margin-bottom: 14px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
 }
 
@@ -301,88 +289,17 @@
 .grid2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .grid3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .colSpan2 {
   grid-column: 1 / -1
-}
-
-/* ─── Bar Chart ─── */
-.barChartWrap {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  height: 140px;
-  padding-top: 10px;
-}
-
-.barGroup {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  height: 100%;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.barFill {
-  width: 100%;
-  background: linear-gradient(to top, #b5914c, #d4aa6a);
-  border-radius: 3px 3px 0 0;
-  min-height: 4px;
-  opacity: .75;
-  transition: opacity .2s, transform .2s;
-  cursor: default;
-}
-
-.barFill:hover {
-  opacity: 1;
-  transform: scaleY(1.02);
-  transform-origin: bottom;
-}
-
-.barLbl {
-  font-size: 9px;
-  color: #c0bdb5;
-  letter-spacing: .06em;
-}
-
-/* ─── Status rows ─── */
-.statusRow {
-  margin-bottom: 14px
-}
-
-.statusRowHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 7px;
-}
-
-.statusBarBg {
-  height: 3px;
-  background: #ede9e3;
-  border-radius: 3px;
-}
-
-.statusBarFill {
-  height: 3px;
-  background: #b5914c;
-  border-radius: 3px;
-  transition: width .6s ease;
-}
-
-.statusCnt {
-  font-size: 11px;
-  color: #c0bdb5;
 }
 
 /* ─── Table ─── */
@@ -401,18 +318,24 @@
   text-transform: uppercase;
   color: #b0a99e;
   font-weight: 500;
-  padding: 0 18px 12px 0;
+  padding: 0 20px 14px 0;
   border-bottom: 1px solid #ede9e3;
   text-align: left;
   white-space: nowrap;
 }
 
+
 .table td {
-  padding: 13px 18px 13px 0;
+  padding: 16px 20px 16px 0;
   border-bottom: 1px solid #f5f2ee;
   font-size: 13px;
   color: #1a1a1a;
   vertical-align: middle;
+  line-height: 1.4;
+}
+
+.table td:first-child {
+  padding-left: 4px
 }
 
 .table tr:last-child td {
@@ -451,7 +374,7 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 2px;
   font-size: 10px;
   font-weight: 400;
@@ -490,43 +413,37 @@
   border: 0.5px solid #d8d4cc
 }
 
-.badgePurple {
-  background: #eeedfe;
-  color: #26215c;
-  border: 0.5px solid #afa9ec
-}
-
-.st_pending {
+.st_Pending {
   background: #fdf4e3;
   color: #8a6520;
   border: 0.5px solid #ddb96a
 }
 
-.st_confirmed {
+.st_Paid {
   background: #e6f1fb;
   color: #042c53;
   border: 0.5px solid #85b7eb
 }
 
-.st_processing {
+.st_Processing {
   background: #eeedfe;
   color: #26215c;
   border: 0.5px solid #afa9ec
 }
 
-.st_shipped {
+.st_Shipped {
   background: #edf7f2;
   color: #085041;
   border: 0.5px solid #5dcaa5
 }
 
-.st_delivered {
+.st_Delivered {
   background: #edf7f2;
   color: #085041;
   border: 0.5px solid #5dcaa5
 }
 
-.st_cancelled {
+.st_Cancelled {
   background: #fcebeb;
   color: #501313;
   border: 0.5px solid #f09595
@@ -538,7 +455,7 @@
   align-items: center;
   gap: 10px;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .pgBtn {
@@ -547,7 +464,7 @@
   border: 1px solid #e0ddd7;
   border-radius: 3px;
   color: #555;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: inherit;
   font-size: 11px;
   letter-spacing: .08em;
   cursor: pointer;
@@ -562,7 +479,7 @@
 
 .pgBtn:disabled {
   opacity: .3;
-  cursor: not-allowed
+  cursor: not-allowed;
 }
 
 .pgInfo {
@@ -581,7 +498,6 @@
 }
 
 .formTitle {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 20px;
   font-weight: 400;
   color: #0a0a0a;
@@ -610,11 +526,12 @@
   border: 1px solid #e0ddd7;
   border-radius: 4px;
   color: #0a0a0a;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: inherit;
   font-size: 13.5px;
   outline: none;
   transition: border-color .15s, background .15s;
   appearance: none;
+  box-sizing: border-box;
 }
 
 .fieldInput:focus {
@@ -630,20 +547,20 @@
 .textarea {
   resize: vertical;
   min-height: 72px;
-  line-height: 1.65
+  line-height: 1.65;
 }
 
 .hint {
   font-size: 10.5px;
   color: #c0bdb5;
-  margin-top: 5px
+  margin-top: 5px;
 }
 
 .checkRow {
   display: flex;
   gap: 20px;
   margin-bottom: 14px;
-  flex-wrap: wrap
+  flex-wrap: wrap;
 }
 
 .checkLabel {
@@ -657,38 +574,6 @@
 
 .checkLabel input[type='checkbox'] {
   accent-color: #b5914c
-}
-
-.sizeChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 5px
-}
-
-.sizeChip {
-  padding: 4px 12px;
-  border: 1px solid #e0ddd7;
-  border-radius: 3px;
-  font-size: 11px;
-  cursor: pointer;
-  background: #faf8f5;
-  color: #888;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  letter-spacing: .08em;
-  transition: all .12s;
-}
-
-.sizeChip:hover {
-  border-color: #b5914c;
-  color: #b5914c
-}
-
-.sizeChipOn {
-  border-color: #b5914c;
-  color: #8a6520;
-  background: #fdf4e3;
-  font-weight: 500;
 }
 
 .formBtns {
@@ -707,7 +592,7 @@
   border: none;
   border-radius: 3px;
   color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: inherit;
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: .14em;
@@ -727,7 +612,7 @@
   border: 1px solid #d8d4cc;
   border-radius: 3px;
   color: #888;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: inherit;
   font-size: 10.5px;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -737,7 +622,7 @@
 
 .btnGhost:hover {
   border-color: #0a0a0a;
-  color: #0a0a0a
+  color: #0a0a0a;
 }
 
 .btnFill {
@@ -746,7 +631,7 @@
   border: none;
   border-radius: 3px;
   color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: inherit;
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: .12em;
@@ -773,12 +658,12 @@
 .btnFill span,
 .btnFill>* {
   position: relative;
-  z-index: 1
+  z-index: 1;
 }
 
 .btnFill:disabled {
   opacity: .4;
-  cursor: not-allowed
+  cursor: not-allowed;
 }
 
 .btnFill:disabled::before {
@@ -787,20 +672,22 @@
 
 .actionBtns {
   display: flex;
-  gap: 5px
+  gap: 6px;
+  align-items: center;
 }
 
 .btnEdit {
-  padding: 4px 12px;
+  padding: 5px 13px;
   background: #faf8f5;
   border: 1px solid #e0ddd7;
   border-radius: 3px;
   color: #555;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: inherit;
   font-size: 10.5px;
   letter-spacing: .06em;
   cursor: pointer;
   transition: all .12s;
+  white-space: nowrap;
 }
 
 .btnEdit:hover {
@@ -810,16 +697,17 @@
 }
 
 .btnDanger {
-  padding: 4px 12px;
+  padding: 5px 13px;
   background: #fcebeb;
   border: 1px solid #f09595;
   border-radius: 3px;
   color: #791f1f;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: inherit;
   font-size: 10.5px;
   letter-spacing: .04em;
   cursor: pointer;
   transition: background .12s;
+  white-space: nowrap;
 }
 
 .btnDanger:hover {
@@ -830,7 +718,7 @@
 .prodCell {
   display: flex;
   align-items: center;
-  gap: 12px
+  gap: 12px;
 }
 
 .prodImg {
@@ -855,23 +743,23 @@
 .userCell {
   display: flex;
   align-items: center;
-  gap: 10px
+  gap: 12px;
 }
 
 .avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: #0a0a0a;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: #fff;
   flex-shrink: 0;
   text-transform: uppercase;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: inherit;
 }
 
 /* ─── Selects ─── */
@@ -880,9 +768,9 @@
   border: 1px solid #e0ddd7;
   border-radius: 3px;
   color: #1a1a1a;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: inherit;
   font-size: 11.5px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   cursor: pointer;
   outline: none;
   transition: border-color .15s;
@@ -897,7 +785,7 @@
   border: 1px solid #e0ddd7;
   border-radius: 4px;
   color: #1a1a1a;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: inherit;
   font-size: 12.5px;
   padding: 7px 13px;
   cursor: pointer;
@@ -955,25 +843,4 @@
   to {
     transform: rotate(360deg)
   }
-}
-
-/* ─── Mini sparkline ─── */
-.sparkline {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 28px;
-  margin-top: 10px;
-}
-
-.sparkBar {
-  flex: 1;
-  background: currentColor;
-  border-radius: 1px;
-  opacity: .22;
-  transition: opacity .15s;
-}
-
-.sparkBar:last-child {
-  opacity: .6
 }
