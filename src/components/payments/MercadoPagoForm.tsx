@@ -99,13 +99,12 @@ const MercadoPagoForm: React.FC<Props> = ({
             setLoading(true);
             setError("");
             try {
-              const { paymentMethodId, token } = cardForm.getCardFormData();
-              console.log(
-                "Token generado:",
-                token,
-                "PaymentMethod:",
-                paymentMethodId,
-              );
+              // SIMULACIÓN: token falso, MP no lo procesa
+              const token = "SIMULATED_TOKEN";
+              const paymentMethodId = "visa";
+
+              // Descomenta esto cuando MP esté listo:
+              // const { paymentMethodId, token } = cardForm.getCardFormData();
 
               const payload = addressId
                 ? { token, addressId, paymentMethodId }
