@@ -86,26 +86,57 @@ interface SearchOverlayProps {
 }
 
 const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
-  const navigate   = useNavigate();
-  const inputRef   = useRef<HTMLInputElement>(null);
-  const [query, setQuery]     = useState("");
-  const [hits, setHits]       = useState<Hit[]>([]);
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeIdx, setActive] = useState(-1);
   const [history, setHistory] = useState<string[]>(getHistory);
 
   const dq = useDebounce(query, 300);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
-    if (!dq.trim()) { setHits([]); setLoading(false); setActive(-1); return; }
+    if (!dq.trim()) {
+      setHits([]);
+      setLoading(false);
+      setActive(-1);
+      return;
+    }
+
     setLoading(true);
-    fetch(`${BASE}/Products?search=${encodeURIComponent(dq)}&limit=7&page=1`)
+
+    fetch(`${BASE}/Products`)
       .then((r) => r.json())
       .then((data) => {
-        const list: unknown[] = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
-        setHits(list as Hit[]);
+        const list: Hit[] = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.items)
+              ? data.items
+              : [];
+
+        const q = dq.toLowerCase();
+
+        const filtered = list
+          .filter(
+            (p) =>
+              p.name?.toLowerCase().includes(q) ||
+              p.category?.toLowerCase().includes(q),
+          )
+          .sort((a, b) => {
+            const aStarts = a.name.toLowerCase().startsWith(q);
+            const bStarts = b.name.toLowerCase().startsWith(q);
+            return aStarts === bStarts ? 0 : aStarts ? -1 : 1;
+          })
+          .slice(0, 7);
+
+        setHits(filtered);
         setActive(-1);
       })
       .catch(() => setHits([]))
@@ -113,14 +144,18 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
   }, [dq]);
 
   useEffect(() => {
-    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const fn = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     document.addEventListener("keydown", fn);
     return () => document.removeEventListener("keydown", fn);
   }, [onClose]);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, []);
 
   const goToProduct = (slug: string, term: string) => {
@@ -141,14 +176,21 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeIdx >= 0 && hits[activeIdx]) goToProduct(hits[activeIdx].slug, query);
+    if (activeIdx >= 0 && hits[activeIdx])
+      goToProduct(hits[activeIdx].slug, query);
     else goToResults();
   };
 
   const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const total = hits.length + (query.trim() ? 1 : 0);
-    if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, total - 1)); }
-    if (e.key === "ArrowUp")   { e.preventDefault(); setActive((i) => Math.max(i - 1, -1)); }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => Math.min(i + 1, total - 1));
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => Math.max(i - 1, -1));
+    }
   };
 
   const removeHistory = (term: string, e: React.MouseEvent) => {
@@ -160,7 +202,14 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
   const showHistory = !query.trim() && history.length > 0;
   const showPopular = !query.trim() && history.length === 0;
   const showResults = query.trim().length > 0;
-  const popular     = ["Blazer", "Lino", "Vestidos", "Abrigos", "Cachemir", "Hombre"];
+  const popular = [
+    "Blazer",
+    "Lino",
+    "Vestidos",
+    "Abrigos",
+    "Cachemir",
+    "Hombre",
+  ];
 
   return (
     <>
@@ -182,12 +231,20 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
             <button
               type="button"
               className={styles.searchClear}
-              onClick={() => { setQuery(""); setHits([]); inputRef.current?.focus(); }}
+              onClick={() => {
+                setQuery("");
+                setHits([]);
+                inputRef.current?.focus();
+              }}
             >
               <X size={13} strokeWidth={1.8} />
             </button>
           )}
-          <button type="button" className={styles.searchClose} onClick={onClose}>
+          <button
+            type="button"
+            className={styles.searchClose}
+            onClick={onClose}
+          >
             Cerrar
           </button>
         </form>
@@ -197,10 +254,22 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
             <div className={styles.searchSection}>
               <p className={styles.searchSectionTitle}>Búsquedas recientes</p>
               {history.map((term) => (
-                <div key={term} className={styles.historyRow} onClick={() => goToResults(term)}>
-                  <Clock className={styles.historyIcon} size={13} strokeWidth={1.4} />
+                <div
+                  key={term}
+                  className={styles.historyRow}
+                  onClick={() => goToResults(term)}
+                >
+                  <Clock
+                    className={styles.historyIcon}
+                    size={13}
+                    strokeWidth={1.4}
+                  />
                   <span>{term}</span>
-                  <button className={styles.historyRemove} onClick={(e) => removeHistory(term, e)} title="Eliminar">
+                  <button
+                    className={styles.historyRemove}
+                    onClick={(e) => removeHistory(term, e)}
+                    title="Eliminar"
+                  >
                     <X size={10} strokeWidth={2} />
                   </button>
                 </div>
@@ -213,7 +282,14 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
               <p className={styles.searchSectionTitle}>Tendencias</p>
               <div className={styles.popularChips}>
                 {popular.map((t) => (
-                  <button key={t} className={styles.popularChip} onClick={() => { setQuery(t); inputRef.current?.focus(); }}>
+                  <button
+                    key={t}
+                    className={styles.popularChip}
+                    onClick={() => {
+                      setQuery(t);
+                      inputRef.current?.focus();
+                    }}
+                  >
                     {t}
                   </button>
                 ))}
@@ -231,17 +307,23 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
               ) : hits.length === 0 ? (
                 <div className={styles.searchEmpty}>
                   <Search size={36} strokeWidth={1} style={{ opacity: 0.15 }} />
-                  <p>Sin resultados para <strong>"{query}"</strong></p>
+                  <p>
+                    Sin resultados para <strong>"{query}"</strong>
+                  </p>
                   <span>Prueba con otra palabra clave</span>
                 </div>
               ) : (
                 <>
                   <p className={styles.searchSectionTitle}>
-                    {hits.length} resultado{hits.length !== 1 ? "s" : ""} para "{query}"
+                    {hits.length} resultado{hits.length !== 1 ? "s" : ""} para "
+                    {query}"
                   </p>
                   {hits.map((hit, i) => {
                     const thumb = hit.imageUrl ?? "";
-                    const color = hit.colors?.[0]?.hex ?? hit.colors?.[0]?.color ?? "#f0f0f0";
+                    const color =
+                      hit.colors?.[0]?.hex ??
+                      hit.colors?.[0]?.color ??
+                      "#f0f0f0";
                     const isActive = i === activeIdx;
                     return (
                       <div
@@ -250,7 +332,10 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
                         onClick={() => goToProduct(hit.slug, query)}
                         onMouseEnter={() => setActive(i)}
                       >
-                        <div className={styles.searchThumb} style={{ background: thumb ? undefined : color }}>
+                        <div
+                          className={styles.searchThumb}
+                          style={{ background: thumb ? undefined : color }}
+                        >
                           {thumb && <img src={thumb} alt={hit.name} />}
                         </div>
                         <div className={styles.searchHitInfo}>
@@ -260,11 +345,21 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
                           <p className={styles.searchHitCat}>{hit.category}</p>
                         </div>
                         <div className={styles.searchHitRight}>
-                          {hit.isSale && <span className={styles.tagSale}>Rebaja</span>}
-                          {hit.isNew  && <span className={styles.tagNew}>Nuevo</span>}
-                          <span className={styles.searchHitPrice}>{fmt(hit.price)}</span>
+                          {hit.isSale && (
+                            <span className={styles.tagSale}>Rebaja</span>
+                          )}
+                          {hit.isNew && (
+                            <span className={styles.tagNew}>Nuevo</span>
+                          )}
+                          <span className={styles.searchHitPrice}>
+                            {fmt(hit.price)}
+                          </span>
                         </div>
-                        <ArrowRight className={styles.searchHitArrow} size={12} strokeWidth={1.5} />
+                        <ArrowRight
+                          className={styles.searchHitArrow}
+                          size={12}
+                          strokeWidth={1.5}
+                        />
                       </div>
                     );
                   })}

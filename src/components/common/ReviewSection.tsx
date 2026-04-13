@@ -13,6 +13,7 @@ interface Props {
 
 const BASE = env.API_BASE_URL;
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const stars = (n: number) =>
   Array.from({ length: 5 }, (_, i) => (
     <span
@@ -27,72 +28,141 @@ const stars = (n: number) =>
     </span>
   ));
 
-async function checkUserPurchased(
+// Normaliza la respuesta sin importar si la API devuelve [] o { data, averageRating, ... }
+function normalizeReviews(raw: any): {
+  reviews: any[];
+  averageRating: number;
+  total: number;
+  ratingDistribution: Record<number, number>;
+} {
+  const reviews: any[] = Array.isArray(raw)
+    ? raw
+    : raw?.data ?? raw?.items ?? raw?.reviews ?? [];
+
+  const total: number = Array.isArray(raw)
+    ? raw.length
+    : raw?.total ?? raw?.totalCount ?? reviews.length;
+
+  const averageRating: number = Array.isArray(raw)
+    ? reviews.length > 0
+      ? reviews.reduce((s: number, r: any) => s + (r.rating ?? 0), 0) /
+        reviews.length
+      : 0
+    : raw?.averageRating ?? 0;
+
+  const ratingDistribution: Record<number, number> = Array.isArray(raw)
+    ? reviews.reduce((acc: Record<number, number>, r: any) => {
+        acc[r.rating] = (acc[r.rating] ?? 0) + 1;
+        return acc;
+      }, {})
+    : raw?.ratingDistribution ?? {};
+
+  return { reviews, averageRating, total, ratingDistribution };
+}
+
+async function getPurchasedOrders(
   productId: string,
   token: string,
-): Promise<boolean> {
+): Promise<{ orderId: string; orderNumber: string }[]> {
   try {
     const res = await fetch(`${BASE}/Orders`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) return false;
+    if (!res.ok) return [];
     const data = await res.json();
-    const orders: any[] =
-      data?.data ?? data?.items ?? (Array.isArray(data) ? data : []);
-    return orders.some(
-      (order) =>
-        ["delivered", "completed"].includes(order.status) &&
-        (order.items ?? order.orderItems ?? []).some(
-          (item: any) => String(item.productId) === String(productId),
-        ),
-    );
+    const orders: any[] = Array.isArray(data)
+      ? data
+      : data?.items ?? data?.data ?? [];
+
+    return orders
+      .filter(
+        (order) =>
+          order.status?.toLowerCase() === "paid" &&
+          (order.items ?? order.orderItems ?? []).some(
+            (item: any) => String(item.productId) === String(productId),
+          ),
+      )
+      .map((order) => ({
+        orderId: order.id,
+        orderNumber:
+          order.orderNumber ??
+          `ORD-${String(order.id).slice(0, 8).toUpperCase()}`,
+      }));
   } catch {
-    return false;
+    return [];
   }
 }
 
+function getToken(): string {
+  return (
+    localStorage.getItem("nw_token") ??
+    localStorage.getItem("nexwear_token") ??
+    localStorage.getItem("token") ??
+    localStorage.getItem("accessToken") ??
+    ""
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 const ReviewSection: React.FC<Props> = ({ productId }) => {
   const { isAuthenticated } = useAuth();
   const [page, setPage] = useState(1);
   const [authOpen, setAuthOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+
+  const [eligibleOrders, setEligibleOrders] = useState<
+    { orderId: string; orderNumber: string }[]
+  >([]);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
   const [rating, setRating] = useState(5);
   const [hoverRating, setHover] = useState(0);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [comment, setComment] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [submitting, setSub] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
-  const [hasPurchased, setHasPurchased] = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Limpia el object URL al desmontar o cambiar preview
   useEffect(() => {
     return () => {
       if (photoPreview) URL.revokeObjectURL(photoPreview);
     };
   }, [photoPreview]);
 
-  // Verifica si el usuario compró el producto
   useEffect(() => {
     if (!isAuthenticated) {
-      setHasPurchased(false);
+      setEligibleOrders([]);
       return;
     }
-    const token =
-      localStorage.getItem("nw_token") ??
-      localStorage.getItem("nexwear_token") ??
-      localStorage.getItem("token") ??
-      localStorage.getItem("accessToken") ??
-      "";
-    checkUserPurchased(productId, token).then(setHasPurchased);
+    setLoadingOrders(true);
+    getPurchasedOrders(productId, getToken())
+      .then((orders) => {
+        setEligibleOrders(orders);
+        if (orders.length > 0) setSelectedOrderId(orders[0].orderId);
+      })
+      .finally(() => setLoadingOrders(false));
   }, [isAuthenticated, productId]);
 
-  const { data, refetch } = useFetch(
+  const { data: rawData, refetch } = useFetch(
     () => reviewService.getByProduct(productId, page),
     [productId, page],
+  );
+
+  // Normalizar siempre, incluso si rawData es undefined o []
+  const {
+    reviews: allReviews,
+    averageRating,
+    total,
+    ratingDistribution,
+  } = normalizeReviews(rawData ?? []);
+
+  const reviews = allReviews.filter((r: any) => r.isApproved && !r.isRejected);
+  const distTotal = Object.values(ratingDistribution).reduce(
+    (s, n) => s + n,
+    0,
   );
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,41 +177,37 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
       setAuthOpen(true);
       return;
     }
-    if (!hasPurchased) return;
     setFormOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !body) {
-      setError("Por favor completa todos los campos");
+    if (!comment.trim()) {
+      setError("Por favor escribe un comentario");
+      return;
+    }
+    if (!selectedOrderId) {
+      setError("Selecciona la orden con la que compraste este producto");
       return;
     }
     setSub(true);
     setError("");
     try {
-      const token =
-        localStorage.getItem("nw_token") ??
-        localStorage.getItem("nexwear_token") ??
-        localStorage.getItem("token") ??
-        localStorage.getItem("accessToken") ??
-        "";
-
-      // 1. Crear la reseña
-      const res = await apiClient.post<{ id: string | number }>(
-        `/products/${productId}/reviews`,
-        { rating, title, comment: body },
-      );
+      const res = await apiClient.post<{ id: string | number }>(`/Reviews`, {
+        orderId: selectedOrderId,
+        productId,
+        rating,
+        comment: comment.trim(),
+      });
       const reviewId = res.data?.id;
 
-      // 2. Subir foto si existe (opcional, fallo silencioso)
       if (photo && reviewId) {
         try {
           const fd = new FormData();
           fd.append("file", photo);
           await fetch(`${BASE}/Reviews/${reviewId}/photos`, {
             method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${getToken()}` },
             body: fd,
           });
         } catch {
@@ -151,25 +217,24 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
 
       setSubmitted(true);
       setFormOpen(false);
-      setTitle("");
-      setBody("");
+      setComment("");
       setRating(5);
       setPhoto(null);
       setPhotoPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       refetch();
-    } catch {
-      setError("Error al enviar la reseña");
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ??
+        err?.response?.data ??
+        "Error al enviar la reseña";
+      setError(typeof msg === "string" ? msg : "Error al enviar la reseña");
     } finally {
       setSub(false);
     }
   };
 
-  const dist = data?.ratingDistribution ?? {};
-  const total = Object.values(dist).reduce((s, n) => s + n, 0);
-
   const renderWriteButton = () => {
-    // No autenticado → muestra botón que abre login
     if (!isAuthenticated) {
       return (
         <button className={styles.writeBtn} onClick={() => setAuthOpen(true)}>
@@ -177,13 +242,8 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
         </button>
       );
     }
-    // Verificando compra → no muestra nada todavía
-    if (hasPurchased === null) return null;
-
-    // No compró → no muestra el botón
-    if (!hasPurchased) return null;
-
-    // Compró → muestra el botón
+    if (loadingOrders) return null;
+    if (eligibleOrders.length === 0) return null;
     return (
       <button className={styles.writeBtn} onClick={handleOpenForm}>
         + Escribir reseña
@@ -198,28 +258,22 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
         {renderWriteButton()}
       </div>
 
-      {/* Mensaje si no ha comprado
-      {isAuthenticated && hasPurchased === false && (
-        <p style={{ fontSize: 12, color: "#9a9a9a", marginBottom: 12 }}>
-          Solo los clientes que han comprado y recibido este producto pueden
-          escribir una reseña.
-        </p>
-      )} */}
-
-      {/* Summary */}
-      {data && (
+      {/* Resumen — solo si hay reseñas */}
+      {reviews.length > 0 && (
         <div className={styles.summary}>
           <div className={styles.avgBlock}>
-            <p className={styles.avgNum}>{data.averageRating.toFixed(1)}</p>
+            <p className={styles.avgNum}>{averageRating.toFixed(1)}</p>
             <div className={styles.avgStars}>
-              {stars(Math.round(data.averageRating))}
+              {stars(Math.round(averageRating))}
             </div>
-            <p className={styles.avgCount}>{data.total} reseñas</p>
+            <p className={styles.avgCount}>
+              {total} reseña{total !== 1 ? "s" : ""}
+            </p>
           </div>
           <div className={styles.bars}>
             {[5, 4, 3, 2, 1].map((n) => {
-              const cnt = dist[n] ?? 0;
-              const pct = total > 0 ? (cnt / total) * 100 : 0;
+              const cnt = ratingDistribution[n] ?? 0;
+              const pct = distTotal > 0 ? (cnt / distTotal) * 100 : 0;
               return (
                 <div key={n} className={styles.barRow}>
                   <span className={styles.barLabel}>{n} ★</span>
@@ -242,7 +296,32 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
         <form className={styles.form} onSubmit={handleSubmit}>
           <h3 className={styles.formTitle}>Tu reseña</h3>
 
-          {/* Selector de estrellas */}
+          {eligibleOrders.length > 1 && (
+            <div className={styles.field}>
+              <label>Orden de compra</label>
+              <select
+                value={selectedOrderId}
+                onChange={(e) => setSelectedOrderId(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  border: "1px solid #e8e8e8",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontFamily: "inherit",
+                  background: "#fafafa",
+                  cursor: "pointer",
+                }}
+              >
+                {eligibleOrders.map((o) => (
+                  <option key={o.orderId} value={o.orderId}>
+                    {o.orderNumber}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className={styles.ratingPicker}>
             <span className={styles.ratingLabel}>Calificación</span>
             <div className={styles.starPicker}>
@@ -250,7 +329,9 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
                 <button
                   key={n}
                   type="button"
-                  className={`${styles.starBtn} ${n <= (hoverRating || rating) ? styles.starOn : ""}`}
+                  className={`${styles.starBtn} ${
+                    n <= (hoverRating || rating) ? styles.starOn : ""
+                  }`}
                   onMouseEnter={() => setHover(n)}
                   onMouseLeave={() => setHover(0)}
                   onClick={() => setRating(n)}
@@ -268,30 +349,17 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
             </div>
           </div>
 
-          {/* Título */}
-          <div className={styles.field}>
-            <label>Título de la reseña</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Resumen breve de tu experiencia"
-              required
-            />
-          </div>
-
-          {/* Cuerpo */}
           <div className={styles.field}>
             <label>Tu reseña</label>
             <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Cuéntanos más sobre el producto, talla, calidad..."
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Cuéntanos sobre el producto, talla, calidad, comodidad..."
               rows={4}
               required
             />
           </div>
 
-          {/* Foto — opcional */}
           <div className={styles.field}>
             <label>
               Foto del producto
@@ -317,7 +385,6 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
               JPG, PNG o WebP. Máx. recomendado: 5 MB.
             </div>
 
-            {/* Preview */}
             {photoPreview && (
               <div
                 style={{
@@ -398,21 +465,26 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
 
       {/* Lista de reseñas */}
       <div className={styles.list}>
-        {!data?.data.length ? (
+        {reviews.length === 0 ? (
           <p className={styles.empty}>Aún no hay reseñas. ¡Sé el primero!</p>
         ) : (
-          data.data.map((r) => (
+          reviews.map((r: any) => (
             <div key={r.id} className={styles.reviewCard}>
               <div className={styles.reviewTop}>
                 <div className={styles.avatar}>
                   {r.userAvatar ? (
                     <img src={r.userAvatar} alt="" />
                   ) : (
-                    r.userName.charAt(0).toUpperCase()
+                    (r.userName ?? r.user?.firstName ?? "U")
+                      .charAt(0)
+                      .toUpperCase()
                   )}
                 </div>
                 <div>
-                  <p className={styles.reviewUser}>{r.userName}</p>
+                  <p className={styles.reviewUser}>
+                    {r.userName ??
+                      `${r.user?.firstName ?? ""} ${r.user?.lastName ?? ""}`.trim()}
+                  </p>
                   <div className={styles.reviewStars}>{stars(r.rating)}</div>
                 </div>
                 <div className={styles.reviewMeta}>
@@ -428,11 +500,11 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
                   </span>
                 </div>
               </div>
-              <h4 className={styles.reviewTitle}>{r.title}</h4>
-              <p className={styles.reviewBody}>{r.body}</p>
+              {r.title && <h4 className={styles.reviewTitle}>{r.title}</h4>}
+              {/* La API guarda "comment" pero puede venir como "body" */}
+              <p className={styles.reviewBody}>{r.body ?? r.comment ?? ""}</p>
 
-              {/* Fotos de la reseña si las hay */}
-              {r.photos && r.photos.length > 0 && (
+              {(r.photos ?? r.photoUrls ?? []).length > 0 && (
                 <div
                   style={{
                     display: "flex",
@@ -441,22 +513,24 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
                     flexWrap: "wrap",
                   }}
                 >
-                  {r.photos.map((url: string, i: number) => (
-                    <img
-                      key={i}
-                      src={url}
-                      alt={`Foto ${i + 1}`}
-                      style={{
-                        width: 72,
-                        height: 72,
-                        objectFit: "cover",
-                        borderRadius: 6,
-                        border: "1px solid #e8e8e8",
-                        cursor: "pointer",
-                      }}
-                      onClick={() => window.open(url, "_blank")}
-                    />
-                  ))}
+                  {(r.photos ?? r.photoUrls ?? []).map(
+                    (url: string, i: number) => (
+                      <img
+                        key={i}
+                        src={url}
+                        alt={`Foto ${i + 1}`}
+                        style={{
+                          width: 72,
+                          height: 72,
+                          objectFit: "cover",
+                          borderRadius: 6,
+                          border: "1px solid #e8e8e8",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => window.open(url, "_blank")}
+                      />
+                    ),
+                  )}
                 </div>
               )}
 
@@ -464,7 +538,7 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
                 className={styles.helpfulBtn}
                 onClick={() => reviewService.markHelpful(r.id)}
               >
-                👍 Útil ({r.helpful})
+                👍 Útil ({r.helpful ?? 0})
               </button>
             </div>
           ))
@@ -472,7 +546,7 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
       </div>
 
       {/* Paginación */}
-      {data && data.total > 8 && (
+      {total > 8 && (
         <div className={styles.pagination}>
           <button
             disabled={page === 1}
@@ -482,10 +556,10 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
             ← Anterior
           </button>
           <span>
-            {page} / {Math.ceil(data.total / 8)}
+            {page} / {Math.ceil(total / 8)}
           </span>
           <button
-            disabled={page >= Math.ceil(data.total / 8)}
+            disabled={page >= Math.ceil(total / 8)}
             onClick={() => setPage((p) => p + 1)}
             className={styles.pageBtn}
           >
@@ -498,9 +572,7 @@ const ReviewSection: React.FC<Props> = ({ productId }) => {
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         reason="Inicia sesión para escribir una reseña"
-        onSuccess={() => {
-          /* hasPurchased se re-evalúa via useEffect */
-        }}
+        onSuccess={() => {}}
       />
     </section>
   );

@@ -59,8 +59,8 @@ function normaliseProduct(raw: Record<string, unknown>): Product {
     origin:        String(raw.origin ?? raw.madeIn ?? ''),
     stock:         Number(raw.stock ?? raw.quantity ?? raw.countInStock ?? 99),
     tags:          Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
-    isActive: Boolean(raw.isActive ?? raw.active ?? true),
-  variants: Array.isArray(raw.variants) ? (raw.variants as ProductVariant[]) : [],
+    isActive:      Boolean(raw.isActive ?? raw.active ?? true),
+    variants:      Array.isArray(raw.variants) ? (raw.variants as ProductVariant[]) : [],
   }
 }
 
@@ -131,17 +131,38 @@ const productService = {
     }
   },
 
-  // ── productId ahora es string (UUID) ─────────────────────────────────────────
-  async getRelated(productId: string): Promise<Product[]> {
+  // ── getRelated: endpoint dedicado + fallback filtrado por categoría ──
+  async getRelated(productId: string, category?: string): Promise<Product[]> {
+    // 1. Intentar endpoint dedicado /related
     try {
       const { data } = await apiClient.get(`/Products/${productId}/related`)
-      if (Array.isArray(data)) return (data as Record<string, unknown>[]).map(normaliseProduct)
-      return normaliseProductsResponse(data).data
-    } catch {
-      const { data } = await apiClient.get('/Products', { params: { limit: 5 } })
-      return normaliseProductsResponse(data).data
+      const products = Array.isArray(data)
+        ? (data as Record<string, unknown>[]).map(normaliseProduct)
+        : normaliseProductsResponse(data).data
+
+      if (category) {
+        const filtered = products.filter((p) => p.category === category)
+        return filtered.length >= 2 ? filtered.slice(0, 4) : products.slice(0, 4)
+      }
+      return products.slice(0, 4)
+    } catch { /* fallback */ }
+
+    // 2. Fallback: traer un lote amplio y filtrar por categoría en cliente
+    try {
+      const { data } = await apiClient.get('/Products', {
+        params: { limit: 20, category },   // enviar category al backend también
+      })
+      const all = normaliseProductsResponse(data).data
         .filter((p) => p.id !== productId)
-        .slice(0, 4)
+
+      if (category) {
+        const byCat = all.filter((p) => p.category === category)
+        if (byCat.length >= 2) return byCat.slice(0, 4)
+      }
+
+      return all.slice(0, 4)
+    } catch {
+      return []
     }
   },
 
@@ -153,7 +174,6 @@ const productService = {
                             : Array.isArray(data?.data)     ? data.data
                             : Array.isArray(data?.variants) ? data.variants
                             : []
-      // La API ya devuelve el shape correcto de ProductVariant — no hace falta normalizar
       return list as ProductVariant[]
     } catch (e) {
       console.warn('[Variants] failed for product', productId, e)

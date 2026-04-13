@@ -3,18 +3,26 @@ import type { ReviewsResponse, CreateReviewData } from '@/types'
 
 const reviewService = {
   async getByProduct(productId: string, page = 1): Promise<ReviewsResponse> {
-    const { data } = await apiClient.get<ReviewsResponse>(`/products/${productId}/reviews`, {
+    const { data } = await apiClient.get<ReviewsResponse>(`/Reviews/product/${productId}`, {
       params: { page, limit: 8 },
     })
     return data
   },
 
-  async create(productId: string, review: CreateReviewData): Promise<void> {
-    await apiClient.post(`/products/${productId}/reviews`, review)
+  async getSummary(productId: string): Promise<any> {
+    const { data } = await apiClient.get(`/Reviews/product/${productId}/summary`)
+    return data
+  },
+
+  async create(reviewData: CreateReviewData): Promise<{ id: string | number }> {
+    const { data } = await apiClient.post<{ id: string | number }>(`/Reviews`, reviewData)
+    return data
   },
 
   async markHelpful(reviewId: number): Promise<void> {
-    await apiClient.post(`/reviews/${reviewId}/helpful`)
+    await apiClient.post(`/Reviews/${reviewId}/helpful`).catch(() => {
+      // endpoint opcional, fallo silencioso
+    })
   },
 }
 

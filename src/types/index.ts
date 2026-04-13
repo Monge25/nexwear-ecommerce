@@ -11,7 +11,6 @@ export interface ProductVariant {
   isActive: boolean
   imageFile?: File | null
 }
-
 export interface Product {
   id: string
   name: string
@@ -36,6 +35,7 @@ export interface Product {
   colors?: ProductColor[]
   variants: ProductVariant[]
 }
+ 
 
 export type ProductFormData = Partial<Product> & {
   imageFile?: File | null

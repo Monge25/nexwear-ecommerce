@@ -116,8 +116,10 @@ const ProductDetail: React.FC = () => {
   );
   const { data: related } = useFetch(
     () =>
-      product ? productService.getRelated(product.id) : Promise.resolve([]),
-    [product?.id],
+      product
+        ? productService.getRelated(product.id, product.category)
+        : Promise.resolve([]),
+    [product?.id, product?.category],
   );
 
   const colorGroups = useMemo(() => {
@@ -137,6 +139,75 @@ const ProductDetail: React.FC = () => {
   );
   const hasVariants = uniqueColors.length > 0;
 
+  // ── Lógica derivada — TODOS los useMemo ANTES de los early returns ──
+  const selectedColor = activeColor ?? uniqueColors[0] ?? null;
+  const colorVariants = useMemo(
+    () => (selectedColor ? (colorGroups.get(selectedColor) ?? []) : []),
+    [selectedColor, colorGroups],
+  );
+
+  const sizesForColor = useMemo(
+    () =>
+      colorVariants
+        .map((v) => v.size)
+        .filter((s): s is string => typeof s === "string" && s.length > 0),
+    [colorVariants],
+  );
+
+  const matchedVariant = useMemo(
+    () =>
+      selectedColor && activeSize
+        ? (colorVariants.find((v) => v.size === activeSize) ?? null)
+        : null,
+    [selectedColor, activeSize, colorVariants],
+  );
+
+  // ── Una miniatura por color ────────────────────────────────────
+  const colorThumbs = useMemo(() => {
+    return uniqueColors.map((colorName) => {
+      const variants = colorGroups.get(colorName) ?? [];
+      const imageUrl =
+        variants.find((v) => v.imageUrl)?.imageUrl ?? product?.imageUrl ?? "";
+      return { colorName, imageUrl };
+    });
+  }, [uniqueColors, colorGroups, product?.imageUrl]);
+
+  // ── Productos relacionados filtrados por categoría ────────────
+  const relatedProducts = useMemo(
+    () => (Array.isArray(related) ? related : []),
+    [related],
+  );
+
+  const filteredRelated = useMemo(() => {
+    if (relatedProducts.length === 0) return relatedProducts;
+    const filtered = relatedProducts.filter(
+      (p) => p.category === product?.category,
+    );
+    return filtered.length >= 2 ? filtered : relatedProducts;
+  }, [relatedProducts, product?.category]);
+
+  const relatedTitle = useMemo(() => {
+    const cat = product?.category;
+    if (cat === "mujer")
+      return (
+        <>
+          También te puede gustar
+        </>
+      );
+    if (cat === "hombre")
+      return (
+        <>
+          También te puede gustar
+        </>
+      );
+    return (
+      <>
+        También te puede <em>gustar</em>
+      </>
+    );
+  }, [product?.category]);
+
+  // ── Early returns DESPUÉS de todos los hooks ──────────────────
   if (loading) return <Loader fullPage />;
   if (!product)
     return (
@@ -146,19 +217,9 @@ const ProductDetail: React.FC = () => {
       </div>
     );
 
-  const selectedColor = activeColor ?? uniqueColors[0] ?? null;
-  const colorVariants = selectedColor
-    ? (colorGroups.get(selectedColor) ?? [])
-    : [];
-  const sizesForColor: string[] = colorVariants
-    .map((v) => v.size)
-    .filter((s): s is string => typeof s === "string" && s.length > 0);
-  const matchedVariant =
-    selectedColor && activeSize
-      ? (colorVariants.find((v) => v.size === activeSize) ?? null)
-      : null;
+  const displayImage =
+    colorVariants.find((v) => v.imageUrl)?.imageUrl ?? product.imageUrl ?? "";
 
-  const displayImage = colorVariants[0]?.imageUrl || product.imageUrl || "";
   const selectedVariant = matchedVariant ?? colorVariants[0];
   const displayPrice = selectedVariant?.finalPrice ?? product.price;
   const displayOriginalPrice =
@@ -189,7 +250,6 @@ const ProductDetail: React.FC = () => {
       : [{ name: "Negro", hex: "#0a0a0a" }];
 
   const liked = isAuthenticated ? has(product.id) : false;
-  const relatedProducts = Array.isArray(related) ? related : [];
 
   const handleSelectColor = (color: string) => {
     setActiveColor(color);
@@ -224,7 +284,6 @@ const ProductDetail: React.FC = () => {
 
     const size: Size = activeSize ?? (displaySizes[0] as Size) ?? "M";
 
-    // Buscar la variante correcta
     const variant = rawVariants?.find(
       (v) => v.color === color.name && v.size === size,
     );
@@ -235,7 +294,6 @@ const ProductDetail: React.FC = () => {
         price: displayPrice,
         imageUrl: displayImage,
         stock: displayStock,
-        // Pasar variants completo para que CartContext encuentre el variantId
         variants: rawVariants ?? [],
       },
       quantity,
@@ -272,6 +330,7 @@ const ProductDetail: React.FC = () => {
       <div className={styles.inner}>
         {/* ── Galería ── */}
         <div className={styles.gallery}>
+          {/* Imagen principal con zoom */}
           <div
             className={styles.mainImg}
             style={{ background: selectedHex }}
@@ -305,6 +364,23 @@ const ProductDetail: React.FC = () => {
               </>
             )}
           </div>
+
+          {/* ── Miniaturas por color ── */}
+          {colorThumbs.length > 1 && (
+            <div className={styles.thumbs}>
+              {colorThumbs.map(({ colorName, imageUrl }) => (
+                <button
+                  key={colorName}
+                  className={`${styles.thumb} ${selectedColor === colorName ? styles.thumbActive : ""}`}
+                  onClick={() => handleSelectColor(colorName)}
+                  aria-label={`Color ${colorName}`}
+                  title={colorName}
+                >
+                  {imageUrl && <img src={imageUrl} alt={colorName} />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Info ── */}
@@ -674,13 +750,11 @@ const ProductDetail: React.FC = () => {
         </div>
       </div>
 
-      {relatedProducts.length > 0 && (
+      {filteredRelated.length > 0 && (
         <section className={styles.related}>
-          <h2 className={styles.relTitle}>
-            También te puede <em>gustar</em>
-          </h2>
+          <h2 className={styles.relTitle}>{relatedTitle}</h2>
           <div className={styles.relGrid}>
-            {relatedProducts.slice(0, 4).map((p) => (
+            {filteredRelated.slice(0, 4).map((p) => (
               <ProductCard
                 key={p.id}
                 product={p}

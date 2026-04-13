@@ -23,6 +23,7 @@ const STATUS_LABELS: Record<string, string> = {
   shipped: "Enviado",
   delivered: "Entregado",
   cancelled: "Cancelado",
+  paid: "Confirmado", // ← pagado = Confirmado
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -210,7 +211,6 @@ const ImagePreview: React.FC<{
 // ─── Product Form ─────────────────────────────────────────────────────────────
 const blankProduct = (): ProductFormData => ({
   name: "",
-  // slug: "",
   category: "mujer",
   price: 0,
   originalPrice: undefined,
@@ -225,7 +225,7 @@ const blankProduct = (): ProductFormData => ({
   care: "",
   origin: "",
   tags: [],
-  variants: [], // ← reemplaza colors, sizes, stock
+  variants: [],
 });
 
 const AdminProductForm: React.FC<{
@@ -270,15 +270,6 @@ const AdminProductForm: React.FC<{
             placeholder="Blazer de lino oversize"
           />
         </div>
-        {/* <div className={styles.fieldWrap}>
-          <label className={styles.fieldLabel}>Slug (URL)</label>
-          <input
-            className={styles.fieldInput}
-            value={form.slug ?? ""}
-            onChange={set("slug")}
-            placeholder="blazer-lino-oversize"
-          />
-        </div> */}
       </div>
 
       <div className={styles.grid2}>
@@ -318,9 +309,6 @@ const AdminProductForm: React.FC<{
           <label className={styles.fieldLabel}>Precio (MXN) *</label>
           <input
             className={styles.fieldInput}
-            // type="number"
-            // min={0}
-            // step={0.01}
             value={form.price ?? ""}
             onChange={(e) =>
               setForm((f) => ({ ...f, price: Number(e.target.value) }))
@@ -328,23 +316,6 @@ const AdminProductForm: React.FC<{
             required
           />
         </div>
-        {/* <div className={styles.fieldWrap}>
-          <label className={styles.fieldLabel}>Precio original</label>
-          <input
-            className={styles.fieldInput}
-            type="number"
-            min={0}
-            step={0.01}
-            value={form.originalPrice ?? ""}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                originalPrice: Number(e.target.value) || undefined,
-              }))
-            }
-          />
-          <div className={styles.hint}>Vacío si no hay oferta</div>
-        </div> */}
       </div>
 
       {/* Image upload */}
@@ -407,16 +378,6 @@ const AdminProductForm: React.FC<{
       </div>
 
       <div className={styles.checkRow}>
-        {/* <label className={styles.checkLabel}>
-          <input
-            type="checkbox"
-            checked={form.isNew ?? false}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, isNew: e.target.checked }))
-            }
-          />
-          Nuevo
-        </label> */}
         <label className={styles.checkLabel}>
           <input
             type="checkbox"
@@ -475,27 +436,37 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
     ),
     [token],
   );
+
+  // ── Órdenes: usa /Orders (endpoint real de usuarios) ──
   const { data: ordersRes, loading: ol } = useFetch(
     useCallback(
       () =>
-        apiCall<Paginated<Order>>("/admin/orders?limit=50", token).catch(
-          () => ({ data: [], total: 0 }),
-        ),
-      [token],
-    ),
-    [token],
-  );
-  const { data: usersRes, loading: ul } = useFetch(
-    useCallback(
-      () =>
-        apiCall<Paginated<User>>("/admin/users?limit=50", token).catch(() => ({
+        apiCall<any>("/Orders?page=1&pageSize=50", token).catch(() => ({
+          items: [],
           data: [],
           total: 0,
+          totalCount: 0,
         })),
       [token],
     ),
     [token],
   );
+
+  // ── Usuarios: usa /Users (endpoint real) ──
+  const { data: usersRes, loading: ul } = useFetch(
+    useCallback(
+      () =>
+        apiCall<any>("/Users?page=1&limit=100", token).catch(() => ({
+          items: [],
+          data: [],
+          total: 0,
+          totalCount: 0,
+        })),
+      [token],
+    ),
+    [token],
+  );
+
   const { data: productsRes, loading: pl } = useFetch(
     useCallback(
       () =>
@@ -516,24 +487,42 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
 
   if (sl || ol || ul || pl) return <Loader />;
 
-  const orders =
-    (ordersRes as any)?.data ?? (Array.isArray(ordersRes) ? ordersRes : []);
-  const users =
-    (usersRes as any)?.data ?? (Array.isArray(usersRes) ? usersRes : []);
+  // Extracción flexible: soporta { items }, { data } o array directo
+  const orders: Order[] =
+    (ordersRes as any)?.items ??
+    (ordersRes as any)?.data ??
+    (Array.isArray(ordersRes) ? ordersRes : []);
+
+  const users: User[] =
+    (usersRes as any)?.items ??
+    (usersRes as any)?.data ??
+    (Array.isArray(usersRes) ? usersRes : []);
+
   const products = productsRes?.items ?? [];
 
   const totalRevenue =
     stats?.totalRevenue ??
     (orders as Order[]).reduce((a: number, o: Order) => a + (o.total ?? 0), 0);
-  const totalOrders = stats?.totalOrders ?? (orders as Order[]).length;
-  const totalUsers = stats?.totalUsers ?? (users as User[]).length;
+  const totalOrders =
+    stats?.totalOrders ??
+    (ordersRes as any)?.totalCount ??
+    (ordersRes as any)?.total ??
+    (orders as Order[]).length;
+  const totalUsers =
+    stats?.totalUsers ??
+    (usersRes as any)?.totalCount ??
+    (usersRes as any)?.total ??
+    (users as User[]).length;
   const totalProducts = stats?.totalProducts ?? productsRes?.totalCount ?? 0;
 
   const recentOrders: Order[] =
     stats?.recentOrders ?? (orders as Order[]).slice(0, 8);
+
+  // Agrupar pedidos por estado
   const byStatus: Record<string, number> = {};
   (orders as Order[]).forEach((o: Order) => {
-    byStatus[o.status] = (byStatus[o.status] ?? 0) + 1;
+    const s = o.status ?? "unknown";
+    byStatus[s] = (byStatus[s] ?? 0) + 1;
   });
   const statusMap = stats?.ordersByStatus ?? byStatus;
 
@@ -561,11 +550,6 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
             value: String(totalProducts),
             accent: styles.accentRed,
           },
-          // {
-          //   label: "Reseñas",
-          //   value: String(totalUsers),
-          //   accent: styles.accentBlue,
-          // },
         ].map((k) => (
           <div key={k.label} className={`${styles.kpiCard} ${k.accent}`}>
             <p className={styles.kpiLabel}>{k.label}</p>
@@ -622,27 +606,31 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
 
         <div className={styles.card}>
           <p className={styles.cardTitle}>Pedidos por Estado</p>
-          {Object.entries(statusMap).map(([s, cnt]) => {
-            const pct = totalOrders
-              ? Math.round(((cnt as number) / totalOrders) * 100)
-              : 0;
-            return (
-              <div key={s} className={styles.statusRow}>
-                <div className={styles.statusRowHeader}>
-                  <StatusBadge status={s} />
-                  <span className={styles.statusCnt}>
-                    {cnt as number} ({pct}%)
-                  </span>
+          {Object.keys(statusMap).length === 0 ? (
+            <p style={{ fontSize: 13, color: "#9a9a9a" }}>Sin datos</p>
+          ) : (
+            Object.entries(statusMap).map(([s, cnt]) => {
+              const pct = totalOrders
+                ? Math.round(((cnt as number) / totalOrders) * 100)
+                : 0;
+              return (
+                <div key={s} className={styles.statusRow}>
+                  <div className={styles.statusRowHeader}>
+                    <StatusBadge status={s} />
+                    <span className={styles.statusCnt}>
+                      {cnt as number} ({pct}%)
+                    </span>
+                  </div>
+                  <div className={styles.statusBarBg}>
+                    <div
+                      className={styles.statusBarFill}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
                 </div>
-                <div className={styles.statusBarBg}>
-                  <div
-                    className={styles.statusBarFill}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
 
         {(stats?.topProducts?.length ?? 0) > 0 && (
@@ -688,7 +676,6 @@ const ProductsSection: React.FC<{
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [createdProduct, setCreatedProduct] = useState<{
-    // ← NUEVO
     id: string;
     price: number;
   } | null>(null);
@@ -727,7 +714,6 @@ const ProductsSection: React.FC<{
   useEffect(() => {
     products.forEach((p) => {
       if (!Array.isArray(p.variants)) return;
-
       p.variants.forEach((v) => {
         if (v.stock < 0) v.stock = 0;
       });
@@ -738,12 +724,10 @@ const ProductsSection: React.FC<{
     setPage(1);
   }, [debouncedSearch, sortOrder]);
 
-  // ── handleSave ──────────────────────────────────────────────────────────────
   const handleSave = async (body: ProductFormData) => {
     setSaving(true);
     try {
       if (body.id) {
-        // ── Edit flow ────────────────────────────────────────
         await apiCall(`/Products/${body.id}`, token, {
           method: "PUT",
           body: JSON.stringify({
@@ -754,8 +738,6 @@ const ProductsSection: React.FC<{
             material: body.material ?? "",
             care: body.care ?? "",
             origin: body.origin ?? "",
-            // isNew:       body.isNew ?? false,
-            // isSale:      body.isSale ?? false,
           }),
         });
 
@@ -780,7 +762,6 @@ const ProductsSection: React.FC<{
         setFormData(null);
         refetch();
       } else {
-        // ── Create flow ──────────────────────────────────────
         const dto = {
           name: body.name ?? "",
           description: body.description ?? "",
@@ -789,16 +770,6 @@ const ProductsSection: React.FC<{
           material: body.material ?? "",
           care: body.care ?? "",
           origin: body.origin ?? "",
-          // isNew:       body.isNew ?? false,
-          // isSale:      body.isSale ?? false,
-          // slug:
-          //   body.slug ??
-          //   (body.name ?? "")
-          //     .toLowerCase()
-          //     .normalize("NFD")
-          //     .replace(/[\u0300-\u036f]/g, "")
-          //     .replace(/[^a-z0-9]+/g, "-")
-          //     .replace(/^-+|-+$/g, ""),
         };
 
         const created = await apiCall<any>("/Products", token, {
@@ -828,7 +799,6 @@ const ProductsSection: React.FC<{
           }
         }
 
-        // Mostrar VariantManager debajo
         setFormData(null);
         setCreatedProduct({ id: productId, price: Number(body.price ?? 0) });
         show("Producto creado. Ahora agrega las variantes.");
@@ -867,7 +837,6 @@ const ProductsSection: React.FC<{
         </button>
       </div>
 
-      {/* ── Search + Sort bar ── */}
       <div
         style={{
           display: "flex",
@@ -923,7 +892,6 @@ const ProductsSection: React.FC<{
         )}
       </div>
 
-      {/* ── Formulario nuevo / editar producto ── */}
       {formData !== null && (
         <AdminProductForm
           initial={formData}
@@ -936,7 +904,6 @@ const ProductsSection: React.FC<{
         />
       )}
 
-      {/* ── VariantManager — aparece después de crear un producto ── */}
       {createdProduct && (
         <>
           <VariantManager
@@ -959,13 +926,12 @@ const ProductsSection: React.FC<{
                 refetch();
               }}
             >
-              Listo, volver a la lista 
+              Listo, volver a la lista
             </button>
           </div>
         </>
       )}
 
-      {/* ── Tabla de productos ── */}
       {loading ? (
         <Loader />
       ) : (
@@ -1003,7 +969,6 @@ const ProductsSection: React.FC<{
                             )}
                             <div>
                               <span>{p.name}</span>
-
                               {Array.isArray(p.variants) &&
                                 p.variants.length > 0 && (
                                   <div
@@ -1086,7 +1051,6 @@ const ProductsSection: React.FC<{
                             >
                               Variantes
                             </button>
-
                             <button
                               className={styles.btnEdit}
                               onClick={() => {
@@ -1096,7 +1060,6 @@ const ProductsSection: React.FC<{
                             >
                               Editar
                             </button>
-
                             <button
                               className={styles.btnDanger}
                               onClick={() => handleDelete(p.id)}
@@ -1142,24 +1105,36 @@ const OrdersSection: React.FC<{
 
   const fetchOrders = useCallback(
     () =>
-      apiCall<Paginated<Order>>(
-        `/admin/orders?page=${page}&limit=20${statusFilter ? `&status=${statusFilter}` : ""}`,
+      apiCall<any>(
+        `/Orders?page=${page}&pageSize=20${statusFilter ? `&status=${statusFilter}` : ""}`,
         token,
       ),
     [page, statusFilter, token],
   );
 
   const { data, loading } = useFetch(fetchOrders, [page, statusFilter, token]);
+
+  // Extracción flexible: { items }, { data } o array directo
   const orders: Order[] =
-    (data as any)?.data ?? (Array.isArray(data) ? data : []);
-  const total: number = (data as any)?.total ?? orders.length;
+    (data as any)?.items ??
+    (data as any)?.data ??
+    (Array.isArray(data) ? data : []);
+  const total: number =
+    (data as any)?.totalCount ?? (data as any)?.total ?? orders.length;
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
-      await apiCall(`/admin/orders/${orderId}`, token, {
+      // Intenta PATCH /Orders/{id}/status primero
+      await apiCall(`/Orders/${orderId}/status`, token, {
         method: "PATCH",
         body: JSON.stringify({ status: newStatus }),
-      });
+      }).catch(() =>
+        // Fallback: PUT /Orders/{id}
+        apiCall(`/Orders/${orderId}`, token, {
+          method: "PUT",
+          body: JSON.stringify({ status: newStatus }),
+        }),
+      );
       show("Estado actualizado");
     } catch (e: any) {
       show("Error: " + e.message, "error");
@@ -1294,14 +1269,19 @@ const UsersSection: React.FC<{
   }, [page, roleFilter, debouncedSearch]);
 
   const fetchUsers = useCallback(
-    () => apiCall<Paginated<User>>(`/Users?${buildQuery()}`, token),
+    () => apiCall<any>(`/Users?${buildQuery()}`, token),
     [buildQuery, token],
   );
 
   const { data, loading, refetch } = useFetch(fetchUsers, [buildQuery, token]);
+
+  // Extracción flexible
   const users: User[] =
-    (data as any)?.data ?? (Array.isArray(data) ? data : []);
-  const total: number = (data as any)?.total ?? users.length;
+    (data as any)?.items ??
+    (data as any)?.data ??
+    (Array.isArray(data) ? data : []);
+  const total: number =
+    (data as any)?.totalCount ?? (data as any)?.total ?? users.length;
 
   useEffect(() => {
     setPage(1);
@@ -1338,7 +1318,6 @@ const UsersSection: React.FC<{
         </span>
       </div>
 
-      {/* Tabs de rol + búsqueda */}
       <div
         style={{
           display: "flex",
@@ -1542,7 +1521,7 @@ const UsersSection: React.FC<{
   );
 };
 
-// ─── Reviews ─────────────────────────────────────────────────────
+// ─── Reviews Section ──────────────────────────────────────────────────────────
 const ReviewsSection: React.FC<{
   token: string;
   show: (msg: string, type?: "success" | "error") => void;
@@ -1550,7 +1529,6 @@ const ReviewsSection: React.FC<{
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<"pending" | "all">("pending");
 
-  // Intenta /pending primero; si falla usa filtro isApproved=false
   const fetchReviews = useCallback(() => {
     if (tab === "pending") {
       return apiCall<any>(
@@ -1573,25 +1551,20 @@ const ReviewsSection: React.FC<{
     (data as any)?.total ?? (data as any)?.totalCount ?? reviews.length;
 
   const moderateReview = async (id: string, approve: boolean) => {
-    // Intenta con { isApproved }, si falla intenta con { status }
     try {
       await apiCall(`/Reviews/${id}/moderate`, token, {
         method: "PUT",
-        body: JSON.stringify({ isApproved: approve }),
+        body: JSON.stringify({
+          isApproved: approve,
+          isRejected: !approve,
+        }),
       });
-    } catch {
-      try {
-        await apiCall(`/Reviews/${id}/moderate`, token, {
-          method: "PUT",
-          body: JSON.stringify({ status: approve ? "approved" : "rejected" }),
-        });
-      } catch (e: any) {
-        show("Error al moderar: " + e.message, "error");
-        return;
-      }
+
+      show(approve ? "Reseña aprobada" : "Reseña rechazada");
+      refetch();
+    } catch (e: any) {
+      show("Error al moderar: " + e.message, "error");
     }
-    show(approve ? "Reseña aprobada ✓" : "Reseña rechazada");
-    refetch();
   };
 
   const deleteReview = async (id: string) => {
@@ -1628,7 +1601,6 @@ const ReviewsSection: React.FC<{
         </span>
       </div>
 
-      {/* Tabs Pendientes / Todas */}
       <div
         style={{
           display: "flex",
@@ -1642,7 +1614,7 @@ const ReviewsSection: React.FC<{
       >
         {(
           [
-            ["pending", "⏳ Pendientes"],
+            ["pending", "Pendientes"],
             ["all", "Todas"],
           ] as const
         ).map(([key, label]) => (
@@ -1730,7 +1702,13 @@ const ReviewsSection: React.FC<{
                           </span>
                         </td>
                         <td>
-                          {r.isApproved ? (
+                          {r.isRejected ? (
+                            <span
+                              className={`${styles.badge} ${styles.badgeRed}`}
+                            >
+                              Rechazada
+                            </span>
+                          ) : r.isApproved ? (
                             <span
                               className={`${styles.badge} ${styles.badgeGreen}`}
                             >
@@ -1753,7 +1731,7 @@ const ReviewsSection: React.FC<{
                                   moderateReview(String(r.id), true)
                                 }
                               >
-                                ✓ Aprobar
+                                 Aprobar
                               </button>
                             )}
                             {r.isApproved && (
@@ -1780,7 +1758,7 @@ const ReviewsSection: React.FC<{
                     <tr>
                       <td colSpan={7} className={styles.empty}>
                         {tab === "pending"
-                          ? "No hay reseñas pendientes ✓"
+                          ? "No hay reseñas pendientes"
                           : "Sin reseñas"}
                       </td>
                     </tr>
@@ -1865,7 +1843,7 @@ const Admin: React.FC = () => {
         )}
         {tab === "orders" && <OrdersSection token={authToken} show={show} />}
         {tab === "users" && <UsersSection token={authToken} show={show} />}
-        {tab === "reviews" && (<ReviewsSection token={authToken} show={show} />)}
+        {tab === "reviews" && <ReviewsSection token={authToken} show={show} />}
       </main>
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}

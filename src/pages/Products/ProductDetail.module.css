@@ -681,3 +681,49 @@
   margin-top: 6px;
   font-weight: 500;
 }
+
+
+/* Contenedor de miniaturas debajo de la imagen principal */
+.thumbs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+ 
+/* Cada miniatura */
+.thumb {
+  width: 64px;
+  height: 64px;
+  border: 1.5px solid var(--g100, #e5e5e5);
+  border-radius: 6px;
+  overflow: hidden;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.15s ease, opacity 0.15s ease;
+  flex-shrink: 0;
+}
+ 
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+ 
+.thumb:hover {
+  border-color: var(--g400, #9a9a9a);
+  opacity: 0.85;
+}
+ 
+/* Miniatura activa */
+.thumbActive {
+  border-color: var(--negro, #0a0a0a);
+  border-width: 2px;
+}
+ 
+.thumbActive:hover {
+  opacity: 1;
+}
+ 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import authService from "@/services/authService";
 import styles from "./AuthModal.module.css";
@@ -37,9 +37,28 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const [newPassword, setNewPassword] = useState("");
   const [confirmNew, setConfirmNew] = useState("");
 
+  // ── Limpiar todo al abrir o cerrar ──────────────────────────────
+  useEffect(() => {
+    setView("login");
+    setError("");
+    setSuccess("");
+    setEmail("");
+    setPassword("");
+    setFirst("");
+    setLast("");
+    setConfirm("");
+    setResetCode("");
+    setNewPassword("");
+    setConfirmNew("");
+  }, [open]);
+
   const reset = () => {
     setError("");
     setSuccess("");
+  };
+
+  const handleClose = () => {
+    onClose();
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -86,7 +105,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  // Paso 1 — enviar código al correo
   const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
     reset();
@@ -101,7 +119,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  // Paso 2 — verificar código
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     reset();
@@ -116,7 +133,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  // Paso 3 — nueva contraseña
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     reset();
@@ -157,9 +173,9 @@ const AuthModal: React.FC<AuthModalProps> = ({
   if (!open) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay} onClick={handleClose}>
       <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
-        <button className={styles.close} onClick={onClose}>
+        <button className={styles.close} onClick={handleClose}>
           ✕
         </button>
 
@@ -368,6 +384,13 @@ const AuthModal: React.FC<AuthModalProps> = ({
               }}
             >
               ← Reenviar código
+            </button>
+            <button
+              type="button"
+              className={styles.backLink}
+              onClick={goToLogin}
+            >
+              ← Volver al inicio de sesión
             </button>
           </form>
         )}
