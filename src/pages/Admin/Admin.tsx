@@ -1554,10 +1554,7 @@ const ReviewsSection: React.FC<{
     try {
       await apiCall(`/Reviews/${id}/moderate`, token, {
         method: "PUT",
-        body: JSON.stringify({
-          isApproved: approve,
-          isRejected: !approve,
-        }),
+        body: JSON.stringify({ approved: approve }),
       });
 
       show(approve ? "Reseña aprobada" : "Reseña rechazada");
@@ -1731,7 +1728,7 @@ const ReviewsSection: React.FC<{
                                   moderateReview(String(r.id), true)
                                 }
                               >
-                                 Aprobar
+                                Aprobar
                               </button>
                             )}
                             {r.isApproved && (

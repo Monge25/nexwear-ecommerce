@@ -1,31 +1,35 @@
-import apiClient from "./apiClient";
-import type { Order } from "@/types";
+import apiClient from "@/config/axiosConfig";
 
-interface CheckoutPayload {
+// ── Shape exacto que espera el endpoint POST /Orders/checkout ──────────────
+export interface CheckoutPayload {
   token: string;
-  shippingAddress: string;
+  // Opción A — dirección guardada
+  addressId?: string;
+  // Opción B — dirección nueva
+  street?: string;
+  interior?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  country?: string;
+  phone?: string;
+  saveAddress?: boolean;
+  addressAlias?: string;
+}
+
+export interface OrderResponse {
+  id: string;
+  status: string;
+  total: number;
+  createdAt: string;
+  [key: string]: unknown;
 }
 
 const orderService = {
-async checkout(data: CheckoutPayload): Promise<Order> {
-  try {
-    const res = await apiClient.post("/Orders/checkout", data);
-    return res.data;
-  } catch (error: any) {
-    console.log("Status:", error.response?.status);
-    console.log("Response body:", JSON.stringify(error.response?.data, null, 2));
-    console.log("Payload enviado:", JSON.stringify(data, null, 2));
-    throw error;
-  }
-},
-  async getOrders(): Promise<Order[]> {
-    const res = await apiClient.get("/Orders");
-    return res.data;
-  },
-
-  async getOrderById(id: string): Promise<Order> {
-    const res = await apiClient.get(`/Orders/${id}`);
-    return res.data;
+  async checkout(payload: CheckoutPayload): Promise<OrderResponse> {
+    const { data } = await apiClient.post("/Orders/checkout", payload);
+    // El backend puede devolver la orden directamente o envuelta en .data
+    return (data?.order ?? data?.data ?? data) as OrderResponse;
   },
 };
 

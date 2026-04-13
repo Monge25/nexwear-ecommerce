@@ -13,6 +13,7 @@ interface ProductCardProps {
   onAddToCart?: (product: Product) => void;
 }
 
+// ── groupByColor: no descarta variantes por falta de imageUrl ─────────────────
 function groupByColor(variants: ProductVariant[]) {
   const map = new Map<
     string,
@@ -20,11 +21,11 @@ function groupByColor(variants: ProductVariant[]) {
   >();
   for (const v of variants) {
     if (!v.isActive) continue;
-    if (!v.color || !v.colorHex || !v.imageUrl) continue;
+    if (!v.color) continue; // solo requiere color, imageUrl y colorHex son opcionales
     if (!map.has(v.color)) {
       map.set(v.color, {
-        colorHex: v.colorHex,
-        imageUrl: v.imageUrl,
+        colorHex: v.colorHex ?? "#888",
+        imageUrl: v.imageUrl ?? "",
         variants: [],
       });
     }
@@ -42,7 +43,7 @@ interface QuickAddModalProps {
     imageUrl: string;
     variants: ProductVariant[];
   }[];
-  allVariants: ProductVariant[]; // todas las variantes para CartContext
+  allVariants: ProductVariant[];
   onClose: () => void;
   onConfirm: (
     colorName: string,
@@ -50,7 +51,7 @@ interface QuickAddModalProps {
     size: string,
     qty: number,
     variantImage: string,
-    allVariants: ProductVariant[], //
+    allVariants: ProductVariant[],
   ) => void;
 }
 
@@ -71,10 +72,16 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
     activeGroup?.variants
       .filter((v) => v.isActive && v.stock > 0)
       .map((v) => v.size)
-      .filter((s, i, arr) => arr.indexOf(s) === i) ?? [];
+      .filter((s, i, arr) => s && arr.indexOf(s) === i) ?? [];
+
+  // Stock máximo de la variante seleccionada
+  const maxStock = selectedSize
+    ? (activeGroup?.variants.find((v) => v.size === selectedSize)?.stock ?? 99)
+    : 99;
 
   useEffect(() => {
     setSelectedSize(null);
+    setQty(1);
   }, [selectedColorIdx]);
 
   const handleConfirm = () => {
@@ -84,8 +91,8 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
       activeGroup.colorHex,
       selectedSize,
       qty,
-      activeGroup.imageUrl,
-      allVariants, // 
+      activeGroup.imageUrl || product.imageUrl,
+      allVariants,
     );
     onClose();
   };
@@ -133,7 +140,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
         {/* Producto mini */}
         <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
           <img
-            src={activeGroup?.imageUrl ?? product.imageUrl}
+            src={activeGroup?.imageUrl || product.imageUrl}
             alt={product.name}
             style={{
               width: 60,
@@ -305,14 +312,15 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
           >
             <button
               onClick={() => setQty((q) => Math.max(1, q - 1))}
+              disabled={qty <= 1}
               style={{
                 width: 40,
                 height: 40,
                 border: "none",
                 background: "#f5f5f5",
                 fontSize: 18,
-                cursor: "pointer",
-                color: "#0a0a0a",
+                cursor: qty <= 1 ? "not-allowed" : "pointer",
+                color: qty <= 1 ? "#ccc" : "#0a0a0a",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -331,15 +339,16 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
               {qty}
             </span>
             <button
-              onClick={() => setQty((q) => q + 1)}
+              onClick={() => setQty((q) => Math.min(maxStock, q + 1))}
+              disabled={qty >= maxStock}
               style={{
                 width: 40,
                 height: 40,
                 border: "none",
                 background: "#f5f5f5",
                 fontSize: 18,
-                cursor: "pointer",
-                color: "#0a0a0a",
+                cursor: qty >= maxStock ? "not-allowed" : "pointer",
+                color: qty >= maxStock ? "#ccc" : "#0a0a0a",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -389,24 +398,38 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   const [authReason, setAuthReason] = useState("");
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [variants, setVariants] = useState<ProductVariant[]>(
+    Array.isArray(product.variants) && product.variants.length > 0
+      ? product.variants
+      : [],
+  );
   const [activeColorIdx, setActiveColorIdx] = useState(0);
-  const [loadingVariants, setLoadingVariants] = useState(true);
+  const [loadingVariants, setLoadingVariants] = useState(
+    !(Array.isArray(product.variants) && product.variants.length > 0),
+  );
 
   useEffect(() => {
+    // Si el producto ya trae variantes completas, no hacer fetch
+    if (Array.isArray(product.variants) && product.variants.length > 0) {
+      setVariants(product.variants);
+      setLoadingVariants(false);
+      return;
+    }
     if (!product.id) return;
     fetch(
       `https://nexwearapi-production.up.railway.app/api/products/${product.id}/variants`,
     )
       .then((r) => r.json())
-      .then((data: ProductVariant[]) => setVariants(data))
-      .catch(() => {})
+      .then((data: ProductVariant[]) => {
+        setVariants(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setVariants([]))
       .finally(() => setLoadingVariants(false));
-  }, [product.id]);
+  }, [product.id, product.variants]);
 
   const colorGroups = groupByColor(variants);
   const activeGroup = colorGroups[activeColorIdx];
-  const activeImage = activeGroup?.imageUrl ?? product.imageUrl;
+  const activeImage = activeGroup?.imageUrl || product.imageUrl;
   const activeBg = activeGroup?.colorHex ?? "#f2f0ec";
 
   const requireAuth = (reason: string, action: () => void) => {
@@ -424,7 +447,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
       setQuickAddOpen(true),
     );
 
-  // Recibe allVariants y los pasa al producto para que CartContext encuentre el variantId
   const handleQuickAddConfirm = (
     colorName: string,
     colorHex: string,
@@ -560,7 +582,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         <QuickAddModal
           product={product}
           colorGroups={colorGroups}
-          allVariants={variants} // pasamos todas las variantes
+          allVariants={variants}
           onClose={() => setQuickAddOpen(false)}
           onConfirm={handleQuickAddConfirm}
         />
