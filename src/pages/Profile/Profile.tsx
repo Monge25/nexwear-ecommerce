@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useFetch } from "@/hooks/useFetch";
-import orderService from "@/services/orderService";
+import orderService, { OrderResponse } from "@/services/orderService";
 import authService from "@/services/authService";
 import { formatPrice } from "@/utils/formatPrice";
 import { ORDER_STATUS_LABELS } from "@/utils/constants";
@@ -67,9 +67,9 @@ const Profile: React.FC = () => {
   const { user, logout } = useAuth();
 
   const [tab, setTab] = useState<Tab>("orders");
-  const [selectedOrder, setOrder] = useState<Order | null>(null);
+  const [selectedOrder, setOrder] = useState<OrderResponse | null>(null);
 
-  const { data: orders, loading: ordersLoading } = useFetch<Order[]>(
+  const { data: orders, loading: ordersLoading } = useFetch<OrderResponse[]>(
     () => orderService.getOrders(),
     [],
   );
@@ -211,7 +211,7 @@ const Profile: React.FC = () => {
     navigate("/");
   };
 
-  const handleViewOrder = (order: Order) => {
+  const handleViewOrder = (order: OrderResponse) => {
     setOrder(order);
     setTab("order-detail");
   };
@@ -453,12 +453,12 @@ const Profile: React.FC = () => {
                 </div>
               )}
 
-              {selectedOrder.trackingNumber && (
+              {/* {selectedOrder.trackingNumber && (
                 <div className={styles.trackingBox}>
                   📦 Número de rastreo:{" "}
                   <strong>{selectedOrder.trackingNumber}</strong>
                 </div>
-              )}
+              )} */}
 
               {/* Productos */}
               <div className={styles.detailSection}>
