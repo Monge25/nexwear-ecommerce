@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from "react";
-import {
-  CardNumber,
-  SecurityCode,
-  ExpirationDate,
-  initMercadoPago,
-  createCardToken,
-} from "@mercadopago/sdk-react";
-import orderService, { CheckoutPayload } from "@/services/orderService";
+import { useEffect, useRef, useState } from "react";
+import orderService from "@/services/orderService";
 import styles from "./MercadoPagoForm.module.css";
- 
+
+declare global {
+  interface Window {
+    MercadoPago: any;
+  }
+}
+
 interface Props {
   addressId?: string;
   street?: string;
@@ -23,128 +22,145 @@ interface Props {
   onSuccess: (orderId: string) => void;
   onError?: () => void;
 }
- 
+
 const MercadoPagoForm: React.FC<Props> = ({
-  addressId,
-  street,
-  interior,
-  city,
-  state,
-  zipCode,
-  country,
-  phone,
-  saveAddress,
-  addressAlias,
-  onSuccess,
-  onError,
+  addressId, street, interior, city, state,
+  zipCode, country, phone, saveAddress, addressAlias,
+  onSuccess, onError,
 }) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [cardholderName, setCardholder] = useState("");
-  const [mpReady, setMpReady] = useState(false);
- 
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
+  const [mpReady, setMpReady]   = useState(false);
+  const mpRef = useRef<any>(null);
+
   useEffect(() => {
-    initMercadoPago(import.meta.env.VITE_MP_PUBLIC_KEY, { locale: "es-MX" });
-    const t = setTimeout(() => setMpReady(true), 800);
-    return () => clearTimeout(t);
+    const initMP = () => {
+      if (!window.MercadoPago) {
+        setTimeout(initMP, 500);
+        return;
+      }
+
+      const mp = new window.MercadoPago(
+        import.meta.env.VITE_MP_PUBLIC_KEY,
+        { locale: "es-MX" }
+      );
+      mpRef.current = mp;
+
+      const cardForm = mp.cardForm({
+        amount: "100",
+        iframe: true,
+        form: {
+          id: "mp-form",
+          cardNumber: {
+            id: "mp-cardNumber",
+            placeholder: "1234 1234 1234 1234",
+          },
+          expirationDate: {
+            id: "mp-expirationDate",
+            placeholder: "MM/AA",
+          },
+          securityCode: {
+            id: "mp-securityCode",
+            placeholder: "CVV",
+          },
+          cardholderName: {
+            id: "mp-cardholderName",
+            placeholder: "Como aparece en la tarjeta",
+          },
+          issuer: { id: "mp-issuer" },
+          installments: { id: "mp-installments" },
+        },
+        callbacks: {
+          onFormMounted: (error: any) => {
+            if (error) {
+              console.error("Error montando formulario MP:", error);
+              return;
+            }
+            setMpReady(true);
+          },
+          onSubmit: async (event: any) => {
+            event.preventDefault();
+            setLoading(true);
+            setError("");
+
+            try {
+              const {
+                paymentMethodId,
+                issuerId,
+                cardholderEmail,
+                token,
+                installments,
+                identificationNumber,
+                identificationType,
+              } = cardForm.getCardFormData();
+
+              console.log("CardForm data:", { paymentMethodId, token });
+
+              const payload = addressId
+                ? { token, addressId, paymentMethodId }
+                : {
+                    token, street, interior, city, state,
+                    zipCode, country, phone,
+                    saveAddress: saveAddress ?? false,
+                    addressAlias: saveAddress ? addressAlias : undefined,
+                    paymentMethodId,
+                  };
+
+              const order = await orderService.checkout(payload);
+              onSuccess(String(order.id));
+
+            } catch (err: any) {
+              console.error("Checkout error:", err);
+              const msg = err?.response?.data?.message ?? "Hubo un error con el pago.";
+              setError(typeof msg === "string" ? msg : JSON.stringify(msg));
+              onError?.();
+            } finally {
+              setLoading(false);
+            }
+          },
+          onFetching: (resource: any) => {
+            console.log("Fetching resource:", resource);
+          }
+        },
+      });
+    };
+
+    initMP();
   }, []);
- 
-  const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!cardholderName.trim()) {
-    setError("Por favor ingresa el nombre del titular.");
-    return;
-  }
-  setLoading(true);
-  setError("");
 
-  try {
-    // 1. Crear token de tarjeta con Mercado Pago
-    const token = await createCardToken({ cardholderName });
-    console.log("TOKEN RESULTADO:", JSON.stringify(token));
-    console.log("TOKEN ID:", token?.id);
-    console.log("TOKEN ERROR:", (token as any)?.error);
-
-    if (!token?.id) {
-      setError("No se pudo procesar la tarjeta. Verifica los datos.");
-      setLoading(false);
-      return;
-    }
-
-    // 2. Construir payload
-    const payload: CheckoutPayload = addressId
-  ? { token: token.id, addressId }
-  : { token: token.id, street, interior, city, state, zipCode, country, phone,
-      saveAddress: saveAddress ?? false,
-      addressAlias: saveAddress ? addressAlias : undefined };
-
-    // 3. Crear el pedido en el backend
-    const order = await orderService.checkout(payload);
-
-    // 4. Notificar éxito
-    onSuccess(String(order.id));
-
-  } catch (err: any) {
-    console.log("=== CHECKOUT ERROR ===");
-    console.log("Status:", err?.response?.status);
-    console.log("Data:", JSON.stringify(err?.response?.data, null, 2));
-    console.log("Headers:", JSON.stringify(err?.response?.headers, null, 2));
-    const msg =
-      err?.response?.data?.message ??
-      err?.response?.data?.error ??
-      err?.response?.data ??
-      "Hubo un error con el pago. Intenta de nuevo.";
-    setError(typeof msg === "string" ? msg : JSON.stringify(msg));
-    onError?.();
-  } finally {
-    setLoading(false);
-  }
-};
- 
   return (
-    <form onSubmit={handleSubmit} className={styles.form}>
-      {!mpReady ? (
+    <form id="mp-form" className={styles.form}>
+      {!mpReady && (
         <div className={styles.loading}>Cargando formulario de pago…</div>
-      ) : (
-        <>
-          <div className={styles.field}>
-            <label className={styles.label}>Número de tarjeta</label>
-            <div className={styles.mpInput}>
-              <CardNumber placeholder="1234 1234 1234 1234" />
-            </div>
-          </div>
- 
-          <div className={styles.row}>
-            <div className={styles.field}>
-              <label className={styles.label}>Vencimiento</label>
-              <div className={styles.mpInput}>
-                <ExpirationDate placeholder="MM/AA" mode="short" />
-              </div>
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>CVV</label>
-              <div className={styles.mpInput}>
-                <SecurityCode placeholder="123" />
-              </div>
-            </div>
-          </div>
- 
-          <div className={styles.field}>
-            <label className={styles.label}>Nombre en la tarjeta</label>
-            <input
-              type="text"
-              placeholder="Como aparece en la tarjeta"
-              value={cardholderName}
-              onChange={(e) => setCardholder(e.target.value.toUpperCase())}
-              className={styles.input}
-              required
-            />
-          </div>
-        </>
       )}
- 
+
+      <div className={styles.field} style={{ display: mpReady ? "block" : "none" }}>
+        <label className={styles.label}>Número de tarjeta</label>
+        <div id="mp-cardNumber" className={styles.mpInput} />
+      </div>
+
+      <div className={styles.row} style={{ display: mpReady ? "flex" : "none" }}>
+        <div className={styles.field}>
+          <label className={styles.label}>Vencimiento</label>
+          <div id="mp-expirationDate" className={styles.mpInput} />
+        </div>
+        <div className={styles.field}>
+          <label className={styles.label}>CVV</label>
+          <div id="mp-securityCode" className={styles.mpInput} />
+        </div>
+      </div>
+
+      <div className={styles.field} style={{ display: mpReady ? "block" : "none" }}>
+        <label className={styles.label}>Nombre en la tarjeta</label>
+        <div id="mp-cardholderName" className={styles.mpInput} />
+      </div>
+
+      {/* Campos ocultos requeridos por MP */}
+      <select id="mp-issuer" style={{ display: "none" }} />
+      <select id="mp-installments" style={{ display: "none" }} />
+
       {error && <p className={styles.error}>{error}</p>}
- 
+
       <button
         type="submit"
         className={styles.btn}
@@ -158,10 +174,10 @@ const MercadoPagoForm: React.FC<Props> = ({
           "Confirmar y Pagar"
         )}
       </button>
- 
+
       <p className={styles.secure}>Pago seguro procesado por Mercado Pago</p>
     </form>
   );
 };
- 
+
 export default MercadoPagoForm;
