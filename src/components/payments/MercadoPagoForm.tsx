@@ -6,7 +6,7 @@ import {
   initMercadoPago,
   createCardToken,
 } from "@mercadopago/sdk-react";
-import orderService from "@/services/orderService";
+import orderService, { CheckoutPayload } from "@/services/orderService";
 import styles from "./MercadoPagoForm.module.css";
  
 interface Props {
@@ -50,65 +50,56 @@ const MercadoPagoForm: React.FC<Props> = ({
   }, []);
  
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!cardholderName.trim()) {
-      setError("Por favor ingresa el nombre del titular.");
+  e.preventDefault();
+  if (!cardholderName.trim()) {
+    setError("Por favor ingresa el nombre del titular.");
+    return;
+  }
+  setLoading(true);
+  setError("");
+
+  try {
+    // 1. Crear token de tarjeta con Mercado Pago
+    const token = await createCardToken({ cardholderName });
+    console.log("TOKEN RESULTADO:", JSON.stringify(token));
+    console.log("TOKEN ID:", token?.id);
+    console.log("TOKEN ERROR:", (token as any)?.error);
+
+    if (!token?.id) {
+      setError("No se pudo procesar la tarjeta. Verifica los datos.");
+      setLoading(false);
       return;
     }
-    setLoading(true);
-    setError("");
- 
-    try {
-      // 1. Crear token de tarjeta con Mercado Pago
-      const token = await createCardToken({ cardholderName });
-      if (!token?.id) {
-        setError("No se pudo procesar la tarjeta. Verifica los datos.");
-        setLoading(false);
-        return;
-      }
- 
-      // 2. Construir payload con el shape exacto que espera el backend
-      const payload = addressId
-        ? {
-            // Dirección guardada — solo se necesita el ID
-            token: token.id,
-            addressId,
-          }
-        : {
-            // Dirección nueva escrita en el formulario
-            token: token.id,
-            street,
-            interior,
-            city,
-            state,
-            zipCode,
-            country,
-            phone,
-            saveAddress: saveAddress ?? false,
-            addressAlias: saveAddress ? addressAlias : undefined,
-          };
- 
-      // 3. Crear el pedido en el backend
-      const order = await orderService.checkout(payload);
- 
-      // 4. Notificar éxito
-      onSuccess(String(order.id));
-    } catch (err: any) {
-      console.log("=== CHECKOUT ERROR ===");
-      console.log("Status:", err?.response?.status);
-      console.log("Data:", JSON.stringify(err?.response?.data, null, 2));
-      console.log("Headers:", JSON.stringify(err?.response?.headers, null, 2));
-      const msg =
-        err?.response?.data?.message ??
-        err?.response?.data?.error ??
-        err?.response?.data ??
-        "Hubo un error con el pago. Intenta de nuevo.";
-      setError(typeof msg === "string" ? msg : JSON.stringify(msg));
-      onError?.();
-    } finally {
-      setLoading(false);
-    }
-  };
+
+    // 2. Construir payload
+    const payload: CheckoutPayload = addressId
+  ? { token: token.id, addressId }
+  : { token: token.id, street, interior, city, state, zipCode, country, phone,
+      saveAddress: saveAddress ?? false,
+      addressAlias: saveAddress ? addressAlias : undefined };
+
+    // 3. Crear el pedido en el backend
+    const order = await orderService.checkout(payload);
+
+    // 4. Notificar éxito
+    onSuccess(String(order.id));
+
+  } catch (err: any) {
+    console.log("=== CHECKOUT ERROR ===");
+    console.log("Status:", err?.response?.status);
+    console.log("Data:", JSON.stringify(err?.response?.data, null, 2));
+    console.log("Headers:", JSON.stringify(err?.response?.headers, null, 2));
+    const msg =
+      err?.response?.data?.message ??
+      err?.response?.data?.error ??
+      err?.response?.data ??
+      "Hubo un error con el pago. Intenta de nuevo.";
+    setError(typeof msg === "string" ? msg : JSON.stringify(msg));
+    onError?.();
+  } finally {
+    setLoading(false);
+  }
+};
  
   return (
     <form onSubmit={handleSubmit} className={styles.form}>

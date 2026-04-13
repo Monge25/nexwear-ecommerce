@@ -187,12 +187,22 @@ export interface Order {
   total: number
   subtotal?: number
   shipping?: number
-  shippingAddress: string 
-  paymentMethod: string
-  paypalOrderId?: string
+  shippingAddress?: string   // ← agrega el ?
+  paymentMethod?: string     // ← agrega el ?
+  // paypalOrderId?: string
+  mpOrderId?: string         // ← nuevo
   createdAt: string
   paidAt?: string
   trackingNumber?: string
+  // Campos de dirección separados
+  street?: string
+  interior?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  country?: string
+  phone?: string
+  fullAddress?: string
   items: OrderItem[]
 }
 
