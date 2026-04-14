@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
 import styles from "./ProductCard.module.css";
 import { useWishlist } from "@/context/WishlistContext";
+import productService from "@/services/productService";
 
 interface ProductCardProps {
   product: Product;
@@ -437,40 +438,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   );
 
   useEffect(() => {
-    // Si el producto ya trae variantes completas, no hacer fetch
-    if (Array.isArray(product.variants) && product.variants.length > 0) {
-      setVariants(product.variants);
-      setLoadingVariants(false);
-      return;
-    }
     if (!product.id) return;
-    fetch(
-      `https://nexwearapi-production.up.railway.app/api/products/${product.id}/variants`,
-    )
-      .then((r) => r.json())
-      .then((data: ProductVariant[]) => {
-        setVariants(Array.isArray(data) ? data : []);
-      })
-      .catch(() => setVariants([]))
+    setLoadingVariants(true);
+    productService
+      .getVariants(product.id)
+      .then((data) => setVariants(Array.isArray(data) && data.length > 0 ? data : (product.variants ?? [])))
+      .catch(() => setVariants(product.variants ?? []))
       .finally(() => setLoadingVariants(false));
-  }, [product.id, product.variants]);
+  }, [product.id]);
 
   const colorGroups = groupByColor(variants);
   const activeGroup = colorGroups[activeColorIdx];
   const activeImage = activeGroup?.imageUrl || product.imageUrl;
   const activeBg = activeGroup?.colorHex ?? "#f2f0ec";
-
-  console.log(
-    "Variants:",
-    variants.map((v) => ({ color: v.color, size: v.size, stock: v.stock })),
-  );
-  console.log(
-    "ColorGroups:",
-    colorGroups.map((g) => ({
-      color: g.color,
-      sizes: g.variants.map((v) => v.size),
-    })),
-  );
 
   const requireAuth = (reason: string, action: () => void) => {
     if (!isAuthenticated) {

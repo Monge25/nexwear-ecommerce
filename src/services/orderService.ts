@@ -1,6 +1,5 @@
 import apiClient from "@/config/axiosConfig";
 
-
 export interface OrderItemResponse {
   id: string;
   productId: string;
@@ -15,8 +14,7 @@ export interface OrderItemResponse {
 }
 
 export interface CheckoutPayload {
-  token: string;
-  paymentMethodId?: string;
+  paymentMethodId: string;
   addressId?: string;
   street?: string;
   interior?: string;
@@ -34,8 +32,8 @@ export interface OrderResponse {
   orderNumber: string;
   status: string;
   total: number;
-  subtotal?: number;   // ← agregar
-  shipping?: number;   // ← agregar
+  subtotal?: number;
+  shipping?: number;
   createdAt: string;
   paidAt?: string;
   paymentMethod?: string;
@@ -49,13 +47,15 @@ export interface OrderResponse {
   fullAddress?: string;
   shippingAddress?: string;
   items: OrderItemResponse[];
-  // [key: string]: unknown;
 }
 
 const orderService = {
   async checkout(payload: CheckoutPayload): Promise<OrderResponse> {
     const { data } = await apiClient.post("/Orders/checkout", payload);
-    return (data?.order ?? data?.data ?? data) as OrderResponse;
+    // La API regresa 201 con la orden directa
+    const order = data?.order ?? data?.data ?? data;
+    console.log("✅ Orden recibida del backend:", order);
+    return order as OrderResponse;
   },
 
   async getOrders(): Promise<OrderResponse[]> {
