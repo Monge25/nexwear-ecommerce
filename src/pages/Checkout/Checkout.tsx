@@ -5,7 +5,7 @@ import { useFetch } from "@/hooks/useFetch";
 import { formatPrice } from "@/utils/formatPrice";
 import Button from "@/components/ui/Button";
 import addressService, { Address } from "@/services/addressService";
-import MercadoPagoForm from "@/components/payments/MercadoPagoForm";
+import StripeForm from "@/components/payments/StripeForm";
 import styles from "./Checkout.module.css";
 
 const formatPhone = (value: string) => {
@@ -351,7 +351,7 @@ const Checkout: React.FC = () => {
 
               {error && <p className={styles.error}>{error}</p>}
 
-              <MercadoPagoForm
+              <StripeForm
                 addressId={selectedAddressId}
                 street={!selectedAddressId ? form.street : undefined}
                 interior={!selectedAddressId ? form.colony : undefined}
