@@ -9,6 +9,7 @@ import { useWishlist } from "@/context/WishlistContext";
 import {
   Search, X, User, Heart, ShoppingBag, ShieldCheck, Clock, ArrowRight,
 } from "lucide-react";
+import env from "@/config/environment";
 
 interface Hit {
   id: number | string;
@@ -22,7 +23,7 @@ interface Hit {
   isNew?: boolean;
 }
 
-const BASE        = "https://nexwearapi-production.up.railway.app/api";
+const BASE = env.API_BASE_URL;
 const HISTORY_KEY = "nx_search_history";
 const MAX_HISTORY = 5;
 
@@ -137,8 +138,6 @@ const SearchOverlay: React.FC<SearchOverlayProps> = ({ onClose }) => {
   }, []);
 
   const goToProduct = (hit: Hit, term: string) => {
-    console.log("Producto seleccionado:", hit);
-
     if (term.trim()) {
       saveToHistory(term.trim());
       setHistory(getHistory());

@@ -10,6 +10,7 @@ export interface ProductVariant {
   imageUrl?: string
   isActive: boolean
   imageFile?: File | null
+  displayPrice?: number
 }
 export interface Product {
   id: string
