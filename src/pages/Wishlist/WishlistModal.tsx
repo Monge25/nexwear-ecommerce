@@ -430,11 +430,11 @@ const WishlistModal: React.FC = () => {
             <span className={styles.count}>{items.length} ARTÍCULOS</span>
           </div>
           <div className={styles.headerActions}>
-            {items.length > 0 && (
+            {/* {items.length > 0 && (
               <button className={styles.share} onClick={handleShare}>
                 Compartir
               </button>
-            )}
+            )} */}
             <button className={styles.close} onClick={closeWishlist}>
               ✕
             </button>
