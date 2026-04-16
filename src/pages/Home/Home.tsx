@@ -265,7 +265,7 @@ const Home: React.FC = () => {
           </div>
           <button
             className={styles.saleBtn}
-            onClick={() => navigate("/productos?sale=true")}
+            onClick={() => navigate("/productos?isOnSale=true")}
           >
             VER REBAJAS
           </button>
@@ -288,10 +288,7 @@ const Home: React.FC = () => {
           </div>
           <div className={styles.featGrid}>
             {featured.slice(0, 8).map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-              />
+              <ProductCard key={p.id} product={p} />
             ))}
           </div>
         </section>
@@ -376,7 +373,7 @@ const Home: React.FC = () => {
             className={styles.btnFill}
             onClick={() => navigate("/productos")}
           >
-            <span>Explorar colección</span>
+            <span>Explorar Coleccion</span>
           </button>
         </div>
       </section>
@@ -391,7 +388,18 @@ const Home: React.FC = () => {
 
       {/* ── Editorial ── */}
       <section className={styles.editorial}>
-        <div className={styles.edImg} />
+        <div className={styles.edImg}>
+          <img
+            src="/images/banners/Imagen tienda.png"
+            alt="Nexwear editorial"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        </div>
         <div className={styles.edText}>
           <p className={styles.eyebrow2}>Nuestra Filosofía</p>
           <blockquote className={styles.quote}>
@@ -405,14 +413,11 @@ const Home: React.FC = () => {
             identidad. Diseñamos para la persona deliberada: aquella que viste
             con propósito, no por tendencia.
           </p>
-          <button className={styles.btnFill2}>
-            <span>Nuestra Historia</span>
-          </button>
         </div>
       </section>
 
       {/* ── Newsletter ── */}
-      <section className={styles.newsletter}>
+      {/* <section className={styles.newsletter}>
         <div>
           <p className={styles.eyebrow2}>Únete a Nosotros</p>
           <h2 className={styles.nlTitle}>
@@ -436,7 +441,7 @@ const Home: React.FC = () => {
             Al suscribirte aceptas nuestra política de privacidad.
           </p>
         </form>
-      </section>
+      </section> */}
     </main>
   );
 };

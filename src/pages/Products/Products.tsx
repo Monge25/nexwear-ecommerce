@@ -8,6 +8,7 @@ import { CATEGORIES, SIZES, SORT_OPTIONS } from "@/utils/constants";
 import styles from "./Products.module.css";
 
 const MAX_PRICE = 10000;
+const PAGE_LIMIT = 12;
 
 const GRID_CONFIGS: { cols: number; dots: [number, number][] }[] = [
   {
@@ -124,10 +125,7 @@ const Products: React.FC = () => {
   const isOnSale = searchParams.get("isOnSale") === "true";
   const activeSizes = searchParams.getAll("size") as ProductFilters["sizes"];
   const maxPrice = Number(searchParams.get("maxPrice") ?? MAX_PRICE);
-
-  // PAGE_LIMIT dinámico según columnas: 4 filas completas siempre
-  const PAGE_LIMIT = gridCols * 4;
-  const totalPages = Math.ceil(total / PAGE_LIMIT);
+  const [totalPages, setTotalPages] = useState(1);
 
   const hasFilters = !!(
     activeCategory ||
@@ -137,59 +135,72 @@ const Products: React.FC = () => {
     maxPrice < MAX_PRICE
   );
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const filters: ProductFilters = {
-        ...(activeCategory && { category: activeCategory }),
-        ...(activeSort !== "relevance" && { sortBy: activeSort }),
-        ...(activeSearch && { search: activeSearch }),
-        ...(isOnSale && { isOnSale: true }),
-        ...(activeSizes?.length && { sizes: activeSizes }),
-        ...(maxPrice < MAX_PRICE && { maxPrice }),
-        page,
-        pageSize: PAGE_LIMIT,
-      };
+const fetchProducts = useCallback(async () => {
+  setLoading(true);
+  try {
+    const filters: ProductFilters = {
+      ...(activeCategory && { category: activeCategory }),
+      ...(activeSort !== "relevance" && { sortBy: activeSort }),
+      ...(activeSearch && { search: activeSearch }),
+      ...(isOnSale && { isOnSale: true }),
+      ...(activeSizes?.length && { sizes: activeSizes }),
+      ...(maxPrice < MAX_PRICE && { maxPrice }),
+      page,
+      pageSize: PAGE_LIMIT,
+    };
 
-      const res = isOnSale
-        ? await productService.getProductsWithVariants(filters)
-        : await productService.getProducts(filters);
+    const res = isOnSale
+      ? await productService.getProductsWithVariants(filters)
+      : await productService.getProducts(filters);
 
-      setProducts(res.data);
-      setTotal(res.total ?? res.data.length);
-    } catch (err) {
-      setProducts([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    activeCategory,
-    activeSort,
-    activeSearch,
-    isOnSale,
-    maxPrice,
-    page,
-    PAGE_LIMIT,
-    JSON.stringify(activeSizes),
-  ]);
+    setProducts(res.data);
+    setTotal(res.total ?? res.data.length);
+    setTotalPages(
+      res.totalPages ?? Math.ceil((res.total ?? res.data.length) / PAGE_LIMIT),
+    );
+  } catch (err) {
+    setProducts([]);
+    setTotal(0);
+  } finally {
+    setLoading(false);
+  }
+}, [
+  activeCategory,
+  activeSort,
+  activeSearch,
+  isOnSale,
+  maxPrice,
+  page,
+  JSON.stringify(activeSizes),
+]);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+useEffect(() => {
+  fetchProducts();
+}, [fetchProducts]);
 
-  useEffect(() => {
-    setPriceInput(String(maxPrice));
-  }, [maxPrice]);
+useEffect(() => {
+  setPriceInput(String(maxPrice));
+}, [maxPrice]);
 
-  const setParam = (key: string, value: string | null) => {
-    const next = new URLSearchParams(searchParams);
-    if (value !== null && value !== "") next.set(key, value);
-    else next.delete(key);
-    next.delete("page");
-    setSearchParams(next);
-    setPage(1);
-  };
+useEffect(() => {
+  setPage(1);
+}, [
+  activeCategory,
+  activeSort,
+  activeSearch,
+  isOnSale,
+  maxPrice,
+  JSON.stringify(activeSizes),
+]);
+
+const setParam = (key: string, value: string | null) => {
+  const next = new URLSearchParams(searchParams);
+  if (value !== null && value !== "") next.set(key, value);
+  else next.delete(key);
+  next.delete("page");
+  setSearchParams(next);
+  setPage(1);
+};
 
   const toggleSize = (s: string) => {
     const next = new URLSearchParams(searchParams);

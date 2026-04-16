@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { LayoutDashboard, Package, ShoppingBag, Users, Star, FileText } from "lucide-react";
 import { useFetch } from "@/hooks/useFetch";
 import { formatPrice } from "@/utils/formatPrice";
 import { CATEGORIES, SIZES } from "@/utils/constants";
@@ -10,8 +11,6 @@ import styles from "./Admin.module.css";
 import { VariantManager } from "./VariantManager";
 import env from "@/config/environment";
 import { PagedResult } from "@/types/pagination";
-import { LayoutDashboard, Package, ShoppingBag, Users } from "lucide-react";
-import { Star } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -25,6 +24,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const BASE = env.API_BASE_URL;
@@ -1782,6 +1782,569 @@ const ReviewsSection: React.FC<{
   );
 };
 
+// ─── Audit Log Types ──────────────────────────────────────────────────────────
+interface AuditLog {
+  id: string;
+  userEmail: string | null;
+  userId: string | null;
+  action: string;
+  category: string;
+  result: string;
+  details: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
+interface AuditLogResponse {
+  logs: AuditLog[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+type ExportRange = "today" | "week" | "month";
+
+// ─── Audit Log Constants ──────────────────────────────────────────────────────
+const ACTION_LABELS: Record<string, string> = {
+  LOGIN_SUCCESS: "Login exitoso",
+  LOGIN_FAILED: "Login fallido",
+  REGISTER: "Registro",
+  LOGOUT: "Logout",
+  PASSWORD_RESET_REQUEST: "Solicitud reset",
+  PASSWORD_RESET_SUCCESS: "Reset exitoso",
+  ORDER_CREATED: "Pedido creado",
+  ORDER_STATUS_CHANGED: "Estado pedido",
+  ORDER_CANCELLED: "Pedido cancelado",
+  CART_ITEM_ADDED: "Item agregado",
+  CART_ITEM_REMOVED: "Item eliminado",
+  CART_CLEARED: "Carrito limpiado",
+  ADMIN_USER_ROLE_CHANGED: "Rol cambiado",
+  ADMIN_REVIEW_MODERATED: "Reseña moderada",
+  ADMIN_ORDER_STATUS_CHANGED: "Estado pedido (admin)",
+  PRODUCT_CREATED: "Producto creado",
+  PRODUCT_DELETED: "Producto eliminado",
+  PRODUCT_UPDATED: "Producto actualizado",
+  REVIEW_CREATED: "Reseña creada",
+  REVIEW_DELETED: "Reseña eliminada",
+};
+
+const LOG_CATEGORIES = ["", "Auth", "Order", "Cart", "Admin", "Product", "Review"];
+
+const LOG_CATEGORY_LABELS: Record<string, string> = {
+  "": "Todas",
+  Auth: "Auth",
+  Order: "Pedidos",
+  Cart: "Carrito",
+  Admin: "Admin",
+  Product: "Productos",
+  Review: "Reseñas",
+};
+
+// ─── Logs Section ─────────────────────────────────────────────────────────────
+const LogsSection: React.FC<{
+  token: string;
+  show: (msg: string, type?: "success" | "error") => void;
+}> = ({ token, show }) => {
+  const [page, setPage] = useState(1);
+  const [category, setCategory] = useState("");
+  const [resultFilter, setResultFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [exportRange, setExportRange] = useState<ExportRange>("month");
+  const [exporting, setExporting] = useState<"pdf" | "xlsx" | null>(null);
+
+  const debouncedSearch = useDebounce(search, 400);
+
+  const buildQuery = useCallback(() => {
+    const p = new URLSearchParams();
+    p.set("page", String(page));
+    p.set("pageSize", "20");
+    if (category) p.set("category", category);
+    if (resultFilter) p.set("result", resultFilter);
+    if (debouncedSearch) p.set("search", debouncedSearch);
+    if (dateFrom) p.set("from", new Date(dateFrom).toISOString());
+    if (dateTo) p.set("to", new Date(dateTo + "T23:59:59").toISOString());
+    return p.toString();
+  }, [page, category, resultFilter, debouncedSearch, dateFrom, dateTo]);
+
+  const { data, loading } = useFetch(
+    useCallback(
+      () =>
+        apiCall<AuditLogResponse>(
+          `/Admin/audit-logs?${buildQuery()}`,
+          token,
+        ).catch(() => ({
+          logs: [],
+          total: 0,
+          page: 1,
+          pageSize: 20,
+          totalPages: 1,
+        })),
+      [buildQuery, token],
+    ),
+    [buildQuery, token],
+  );
+
+  const logs = data?.logs ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+
+  useEffect(() => {
+    setPage(1);
+  }, [category, resultFilter, debouncedSearch, dateFrom, dateTo]);
+
+  // ── Export helpers ─────────────────────────────────────────────────────────
+  const getRangeDates = useCallback(() => {
+    const now = new Date();
+    const from = new Date();
+    if (exportRange === "today") from.setHours(0, 0, 0, 0);
+    else if (exportRange === "week") from.setDate(from.getDate() - 7);
+    else from.setMonth(from.getMonth() - 1);
+    return { from: from.toISOString(), to: now.toISOString() };
+  }, [exportRange]);
+
+  const fetchAllForExport = useCallback(async (): Promise<AuditLog[]> => {
+    const { from, to } = getRangeDates();
+    const p = new URLSearchParams();
+    p.set("page", "1");
+    p.set("pageSize", "1000");
+    if (category) p.set("category", category);
+    if (resultFilter) p.set("result", resultFilter);
+    p.set("from", from);
+    p.set("to", to);
+    const res = await apiCall<AuditLogResponse>(
+      `/Admin/audit-logs?${p.toString()}`,
+      token,
+    );
+    return res.logs ?? [];
+  }, [getRangeDates, category, resultFilter, token]);
+
+  // const handleExportXLSX = async () => {
+  //   setExporting("xlsx");
+  //   try {
+  //     const XLSX = await import("xlsx");
+  //     const exportLogs = await fetchAllForExport();
+  //     const rows = exportLogs.map((l) => ({
+  //       Fecha: l.createdAt ? new Date(l.createdAt).toLocaleString("es-MX") : "",
+  //       Acción: l.action,
+  //       Categoría: l.category,
+  //       Resultado: l.result,
+  //       Email: l.userEmail ?? "",
+  //       "User ID": l.userId ?? "",
+  //       IP: l.ipAddress ?? "",
+  //       Detalles: l.details ?? "",
+  //       "User Agent": l.userAgent ?? "",
+  //     }));
+  //     const ws = XLSX.utils.json_to_sheet(rows);
+  //     ws["!cols"] = [16, 24, 14, 12, 28, 16, 16, 40, 40].map((w) => ({ wch: w }));
+  //     const wb = XLSX.utils.book_new();
+  //     XLSX.utils.book_append_sheet(wb, ws, "Audit Logs");
+  //     XLSX.writeFile(wb, `nexwear-logs-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  //   } catch (e: any) {
+  //     show("Error al exportar Excel: " + e.message, "error");
+  //   } finally {
+  //     setExporting(null);
+  //   }
+  // };
+
+  const handleExportPDF = async () => {
+    setExporting("pdf");
+    try {
+      const { jsPDF } = await import("jspdf");
+      const { default: autoTable } = await import("jspdf-autotable");
+      const exportLogs = await fetchAllForExport();
+      const rangeLabel = { today: "Hoy", week: "Esta semana", month: "Este mes" }[exportRange];
+
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      doc.setFontSize(14);
+      doc.text("Nexwear — Audit Logs", 40, 36);
+      doc.setFontSize(9);
+      doc.setTextColor(120);
+      doc.text(
+        `Exportado: ${new Date().toLocaleString("es-MX")}  ·  Período: ${rangeLabel}  ·  ${exportLogs.length} registros`,
+        40,
+        52,
+      );
+
+      autoTable(doc, {
+        startY: 66,
+        head: [["Fecha", "Acción", "Categoría", "Resultado", "Email / ID", "IP", "Detalles"]],
+        body: exportLogs.map((l) => [
+          l.createdAt
+            ? new Date(l.createdAt).toLocaleString("es-MX", {
+                dateStyle: "short",
+                timeStyle: "short",
+              })
+            : "",
+          l.action,
+          l.category,
+          l.result,
+          l.userEmail ?? (l.userId ? "#" + String(l.userId).slice(-8).toUpperCase() : ""),
+          l.ipAddress ?? "",
+          (l.details ?? "").slice(0, 80),
+        ]),
+        styles: { fontSize: 7.5, cellPadding: 4 },
+        headStyles: { fillColor: [10, 10, 10], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [248, 248, 248] },
+        columnStyles: {
+          0: { cellWidth: 70 },
+          1: { cellWidth: 90 },
+          2: { cellWidth: 54 },
+          3: { cellWidth: 50 },
+          4: { cellWidth: 110 },
+          5: { cellWidth: 70 },
+          6: { cellWidth: "auto" as any },
+        },
+        margin: { left: 40, right: 40 },
+      });
+
+      doc.save(`nexwear-logs-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e: any) {
+      show("Error al exportar PDF: " + e.message, "error");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  // ── Helpers de render ──────────────────────────────────────────────────────
+  const getCategoryBadgeClass = (cat: string): string => {
+    const map: Record<string, string> = {
+      Auth: styles.badgeBlue,
+      Order: styles.badgeBlue,
+      Cart: styles.badgeGreen,
+      Admin: styles.badgeGold,
+      Product: styles.badgeGold,
+      Review: styles.badgeGray,
+    };
+    return map[cat] ?? styles.badgeGray;
+  };
+
+  const formatDetails = (raw: string | null): string => {
+    if (!raw) return "—";
+    try {
+      return JSON.stringify(JSON.parse(raw), null, 1).slice(0, 120);
+    } catch {
+      return raw.slice(0, 80);
+    }
+  };
+
+  return (
+    <>
+      {/* Header */}
+      <div className={styles.tabHeader}>
+        <h1 className={styles.pageTitle}>Logs de auditoría</h1>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <select
+            className={styles.filterSel}
+            value={exportRange}
+            onChange={(e) => setExportRange(e.target.value as ExportRange)}
+          >
+            <option value="today">Hoy</option>
+            <option value="week">Esta semana</option>
+            <option value="month">Este mes</option>
+          </select>
+          <button
+            className={styles.btnEdit}
+            disabled={exporting !== null}
+            onClick={handleExportPDF}
+            style={{
+              background: "#fcebeb",
+              color: "#a32d2d",
+              border: "none",
+              opacity: exporting === "pdf" ? 0.6 : 1,
+            }}
+          >
+            {exporting === "pdf" ? "Exportando…" : "↓ PDF"}
+          </button>
+          {/* <button
+            className={styles.btnEdit}
+            disabled={exporting !== null}
+            onClick={handleExportXLSX}
+            style={{
+              background: "#eaf3de",
+              color: "#3b6d11",
+              border: "none",
+              opacity: exporting === "xlsx" ? 0.6 : 1,
+            }}
+          >
+            {exporting === "xlsx" ? "Exportando…" : "↓ Excel"}
+          </button> */}
+        </div>
+      </div>
+
+      {/* Category pills */}
+      <div
+        style={{
+          display: "flex",
+          gap: 2,
+          background: "#f0f0f0",
+          borderRadius: 8,
+          padding: 3,
+          width: "fit-content",
+          marginBottom: 14,
+          flexWrap: "wrap",
+        }}
+      >
+        {LOG_CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setCategory(cat)}
+            style={{
+              padding: "5px 14px",
+              border: "none",
+              borderRadius: 6,
+              fontSize: 12,
+              fontFamily: "inherit",
+              cursor: "pointer",
+              fontWeight: category === cat ? 500 : 400,
+              background: category === cat ? "#fff" : "transparent",
+              color: category === cat ? "#0a0a0a" : "#6e6e6e",
+              boxShadow: category === cat ? "0 1px 3px rgba(0,0,0,.08)" : "none",
+              transition: "all .15s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {LOG_CATEGORY_LABELS[cat]}
+          </button>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          flexWrap: "wrap",
+          marginBottom: 14,
+          alignItems: "center",
+        }}
+      >
+        <div style={{ position: "relative", width: 240 }}>
+          <svg
+            style={{
+              position: "absolute",
+              left: 10,
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+              color: "#9a9a9a",
+            }}
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="search"
+            className={styles.fieldInput}
+            style={{ paddingLeft: 30, marginBottom: 0, fontSize: 12 }}
+            placeholder="Email, acción, IP…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <select
+          className={styles.filterSel}
+          value={resultFilter}
+          onChange={(e) => setResultFilter(e.target.value)}
+        >
+          <option value="">Todos los resultados</option>
+          <option value="SUCCESS"> Éxito</option>
+          <option value="ERROR"> Error</option>
+        </select>
+
+        <input
+          type="date"
+          className={styles.filterSel}
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          title="Desde"
+          style={{ fontSize: 12 }}
+        />
+
+        <input
+          type="date"
+          className={styles.filterSel}
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          title="Hasta"
+          style={{ fontSize: 12 }}
+        />
+
+        {!loading && total > 0 && (
+          <span style={{ fontSize: 12, color: "#9a9a9a", whiteSpace: "nowrap" }}>
+            {total} registro{total !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <Loader />
+      ) : (
+        <>
+          <div className={styles.card}>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Acción</th>
+                    <th>Categoría</th>
+                    <th>Resultado</th>
+                    <th>Usuario</th>
+                    <th>IP</th>
+                    <th>Detalles</th>
+                    <th>User Agent</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.length ? (
+                    logs.map((log) => (
+                      <tr key={log.id}>
+                        <td
+                          className={styles.tdNum}
+                          style={{ fontSize: 11, whiteSpace: "nowrap" }}
+                        >
+                          {log.createdAt
+                            ? new Date(log.createdAt).toLocaleString("es-MX", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </td>
+
+                        <td>
+                          <div style={{ fontSize: 12, fontWeight: 500 }}>
+                            {ACTION_LABELS[log.action] ?? log.action}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 10,
+                              color: "#9a9a9a",
+                              marginTop: 1,
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {log.action}
+                          </div>
+                        </td>
+
+                        <td>
+                          <span
+                            className={`${styles.badge} ${getCategoryBadgeClass(log.category)}`}
+                          >
+                            {log.category || "—"}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span
+                            className={`${styles.badge} ${
+                              log.result === "SUCCESS"
+                                ? styles.badgeGreen
+                                : styles.badgeGray
+                            }`}
+                          >
+                            {log.result === "SUCCESS" ? "Éxito" : "Error"}
+                          </span>
+                        </td>
+
+                        <td>
+                          {log.userEmail ? (
+                            <span style={{ fontSize: 11 }}>{log.userEmail}</span>
+                          ) : log.userId ? (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontFamily: "monospace",
+                                color: "#9a9a9a",
+                              }}
+                            >
+                              #{String(log.userId).slice(-8).toUpperCase()}
+                            </span>
+                          ) : (
+                            <span style={{ color: "#bbb" }}>—</span>
+                          )}
+                        </td>
+
+                        <td
+                          className={styles.tdNum}
+                          style={{ fontSize: 11, fontFamily: "monospace" }}
+                        >
+                          {log.ipAddress ?? "—"}
+                        </td>
+
+                        <td>
+                          <pre
+                            style={{
+                              fontSize: 10,
+                              fontFamily: "monospace",
+                              color: "#6e6e6e",
+                              maxWidth: 200,
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-all",
+                              margin: 0,
+                            }}
+                          >
+                            {formatDetails(log.details)}
+                          </pre>
+                        </td>
+
+                        <td>
+                          <div
+                            title={log.userAgent ?? ""}
+                            style={{
+                              maxWidth: 160,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              fontSize: 10,
+                              color: "#9a9a9a",
+                            }}
+                          >
+                            {log.userAgent ?? "—"}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className={styles.empty}>
+                        Sin logs para los filtros seleccionados
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <Pagination
+            page={page}
+            total={total}
+            pageSize={20}
+            onPrev={() => setPage((p) => p - 1)}
+            onNext={() => setPage((p) => p + 1)}
+          />
+        </>
+      )}
+    </>
+  );
+};
+
 // ─── Main Admin Component ─────────────────────────────────────────────────────
 type Tab = "dashboard" | "products" | "orders" | "users" | "reviews" | "logs";
 
@@ -1791,7 +2354,7 @@ const NAV_ITEMS: { tab: Tab; icon: React.ReactNode; label: string }[] = [
   { tab: "orders", icon: <ShoppingBag size={15} />, label: "Pedidos" },
   { tab: "users", icon: <Users size={15} />, label: "Usuarios" },
   { tab: "reviews", icon: <Star size={15} />, label: "Reseñas" },
-    { tab: "logs", icon: <Star size={15} />, label: "Logs" },
+  { tab: "logs", icon: <FileText size={15} />, label: "Logs" },
 ];
 
 const Admin: React.FC = () => {
@@ -1848,6 +2411,7 @@ const Admin: React.FC = () => {
         {tab === "orders" && <OrdersSection token={authToken} show={show} />}
         {tab === "users" && <UsersSection token={authToken} show={show} />}
         {tab === "reviews" && <ReviewsSection token={authToken} show={show} />}
+        {tab === "logs" && <LogsSection token={authToken} show={show} />}
       </main>
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}

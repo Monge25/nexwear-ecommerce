@@ -977,3 +977,10 @@
     max-width: 260px;
   }
 }
+
+.edImg {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
