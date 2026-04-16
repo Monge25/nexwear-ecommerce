@@ -45,6 +45,7 @@ interface VariantManagerProps {
 // ── Constantes ───────────────────────────────────────────────
 
 const SIZES = [
+  "Unitalla",
   "XS",
   "S",
   "M",
