@@ -54,7 +54,6 @@ const orderService = {
     const { data } = await apiClient.post("/Orders/checkout", payload);
     // La API regresa 201 con la orden directa
     const order = data?.order ?? data?.data ?? data;
-    console.log("✅ Orden recibida del backend:", order);
     return order as OrderResponse;
   },
 

@@ -14,7 +14,6 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('nexwear_token')
-    console.log(" Token en request:", token ? "presente" : "AUSENTE", config.url)
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }

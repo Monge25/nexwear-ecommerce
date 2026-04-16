@@ -320,8 +320,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
           i.selectedColor.name === colorName,
       );
 
-          console.log("ITEM A ELIMINAR:", item);
-    console.log("cartItemId:", item?.cartItemId);
       // 1. Eliminar del estado local inmediatamente
       dispatch({
         type: "REMOVE_ITEM",
