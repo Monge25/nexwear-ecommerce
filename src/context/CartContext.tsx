@@ -44,7 +44,17 @@ type CartAction =
   | { type: "CLEAR" }
   | { type: "OPEN" }
   | { type: "CLOSE" }
-  | { type: "SET_CART"; payload: CartState };
+  | { type: "SET_CART"; payload: CartState }
+  // Acción para guardar el cartItemId del backend en un item existente
+  | {
+      type: "SET_CART_ITEM_ID";
+      payload: {
+        productId: string;
+        size: Size;
+        colorName: string;
+        cartItemId: string;
+      };
+    };
 
 function cartReducer(state: CartState, action: CartAction): CartState {
   const key = (item: CartItem) =>
@@ -81,6 +91,20 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       return {
         ...state,
         items: [...state.items, { ...action.payload, quantity: clampedQty }],
+      };
+    }
+
+    case "SET_CART_ITEM_ID": {
+      const { productId, size, colorName, cartItemId } = action.payload;
+      return {
+        ...state,
+        items: state.items.map((i) =>
+          i.product.id === productId &&
+          i.selectedSize === size &&
+          i.selectedColor.name === colorName
+            ? { ...i, cartItemId }
+            : i,
+        ),
       };
     }
 
@@ -226,7 +250,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       selectedColor: ProductColor,
       variantImage?: string,
     ) => {
-      // 1. Actualizar estado local inmediatamente
+      // 1. Actualizar estado local inmediatamente (optimistic update)
       dispatch({
         type: "ADD_ITEM",
         payload: {
@@ -245,9 +269,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
           (v) => v.color === selectedColor.name && v.size === selectedSize,
         );
 
-        console.log("Variante encontrada:", variant);
-        console.log("Variants disponibles:", product.variants);
-
         if (!variant) {
           console.warn(
             "No se encontró variante para sincronizar con el backend",
@@ -255,16 +276,32 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
 
-        await cartService.addItem({
+        const backendCart = await cartService.addItem({
           productId: product.id,
           variantId: variant.id,
           quantity,
         });
 
-        console.log("✅ Item sincronizado con backend");
+        // Guardar el cartItemId del backend en el item local
+        // El backend devuelve todos los items del carrito — buscamos el que coincide
+        const backendItem = backendCart.items.find(
+          (i) => i.variantId === variant.id,
+        );
+
+        if (backendItem) {
+          dispatch({
+            type: "SET_CART_ITEM_ID",
+            payload: {
+              productId: product.id,
+              size: selectedSize,
+              colorName: selectedColor.name,
+              cartItemId: backendItem.id,
+            },
+          });
+        }
       } catch (err: any) {
         console.error(
-          "❌ Error sincronizando carrito con backend:",
+          "Error sincronizando carrito con backend:",
           err.response?.data,
         );
       }
@@ -272,36 +309,91 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
+  // removeItem ahora llama al endpoint DELETE /Cart/items/{cartItemId}
   const removeItem = useCallback(
-    (productId: string, size: Size, colorName: string) =>
+    async (productId: string, size: Size, colorName: string) => {
+      // Buscar el cartItemId antes de eliminar del estado local
+      const item = state.items.find(
+        (i) =>
+          i.product.id === productId &&
+          i.selectedSize === size &&
+          i.selectedColor.name === colorName,
+      );
+
+          console.log("ITEM A ELIMINAR:", item);
+    console.log("cartItemId:", item?.cartItemId);
+      // 1. Eliminar del estado local inmediatamente
       dispatch({
         type: "REMOVE_ITEM",
         payload: { productId, size, colorName },
-      }),
-    [],
+      });
+
+      // 2. Sincronizar con el backend si tenemos el cartItemId
+      if (item?.cartItemId) {
+        try {
+          await cartService.removeItem(item.cartItemId);
+        } catch (err: any) {
+          console.error(
+            "Error eliminando item del carrito en backend:",
+            err.response?.data,
+          );
+        }
+      } else {
+        console.warn(
+          "No se encontró cartItemId para eliminar del backend — solo se eliminó localmente",
+        );
+      }
+    },
+    [state.items],
   );
 
+  // updateQuantity ahora llama al endpoint PUT /Cart/items/{cartItemId}
   const updateQuantity = useCallback(
-    (productId: string, size: Size, colorName: string, quantity: number) =>
+    async (
+      productId: string,
+      size: Size,
+      colorName: string,
+      quantity: number,
+    ) => {
+      const item = state.items.find(
+        (i) =>
+          i.product.id === productId &&
+          i.selectedSize === size &&
+          i.selectedColor.name === colorName,
+      );
+
+      // 1. Actualizar estado local inmediatamente
       dispatch({
         type: "UPDATE_QTY",
         payload: { productId, size, colorName, quantity },
-      }),
-    [],
+      });
+
+      // 2. Sincronizar con el backend
+      if (item?.cartItemId) {
+        try {
+          if (quantity <= 0) {
+            await cartService.removeItem(item.cartItemId);
+          } else {
+            await cartService.updateItem(item.cartItemId, quantity);
+          }
+        } catch (err: any) {
+          console.error(
+            "Error actualizando cantidad en backend:",
+            err.response?.data,
+          );
+        }
+      } else {
+        console.warn("No se encontró cartItemId para actualizar en el backend");
+      }
+    },
+    [state.items],
   );
 
   const removeOutOfStockItems = useCallback(() => {
-    outOfStockItems.forEach((item) =>
-      dispatch({
-        type: "REMOVE_ITEM",
-        payload: {
-          productId: item.product.id,
-          size: item.selectedSize,
-          colorName: item.selectedColor.name,
-        },
-      }),
-    );
-  }, [outOfStockItems]);
+    outOfStockItems.forEach((item) => {
+      removeItem(item.product.id, item.selectedSize, item.selectedColor.name);
+    });
+  }, [outOfStockItems, removeItem]);
 
   const clearCart = useCallback(async () => {
     dispatch({ type: "CLEAR" });

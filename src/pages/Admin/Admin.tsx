@@ -516,7 +516,7 @@ const DashboardSection: React.FC<{ token: string }> = ({ token }) => {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
-    .slice(0, 8);
+    .slice(0, 5);
 
   return (
     <>
@@ -1783,7 +1783,7 @@ const ReviewsSection: React.FC<{
 };
 
 // ─── Main Admin Component ─────────────────────────────────────────────────────
-type Tab = "dashboard" | "products" | "orders" | "users" | "reviews";
+type Tab = "dashboard" | "products" | "orders" | "users" | "reviews" | "logs";
 
 const NAV_ITEMS: { tab: Tab; icon: React.ReactNode; label: string }[] = [
   { tab: "dashboard", icon: <LayoutDashboard size={15} />, label: "Dashboard" },
@@ -1791,6 +1791,7 @@ const NAV_ITEMS: { tab: Tab; icon: React.ReactNode; label: string }[] = [
   { tab: "orders", icon: <ShoppingBag size={15} />, label: "Pedidos" },
   { tab: "users", icon: <Users size={15} />, label: "Usuarios" },
   { tab: "reviews", icon: <Star size={15} />, label: "Reseñas" },
+    { tab: "logs", icon: <Star size={15} />, label: "Logs" },
 ];
 
 const Admin: React.FC = () => {

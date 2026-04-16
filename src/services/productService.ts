@@ -109,6 +109,12 @@ const productService = {
     throw new Error('Producto no encontrado')
   },
 
+
+  async getProductsWithVariants(filters: ProductFilters = {}): Promise<ProductsResponse> {
+    const { data } = await apiClient.get('/Products/with-variants', { params: filters })
+    return normaliseProductsResponse(data)
+  },
+
   async getFeatured(): Promise<Product[]> {
     try {
       const { data } = await apiClient.get('/Products/featured')

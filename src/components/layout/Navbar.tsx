@@ -338,9 +338,9 @@ const Navbar: React.FC = () => {
         <ul className={styles.links}>
           <li><Link to="/productos?category=mujer">Mujer</Link></li>
           <li><Link to="/productos?category=hombre">Hombre</Link></li>
-          <li><Link to="/productos">Colección</Link></li>
+          <li><Link to="/productos?category=accesorios">Accesorios</Link></li>
           <li><Link to="/productos?category=exteriores">Exteriores</Link></li>
-          <li><Link to="/productos?isSale=true" className={styles.saleLink}>Rebajas</Link></li>
+          <li><Link to="/productos?isOnSale=true" className={styles.saleLink}>Rebajas</Link></li>
         </ul>
 
         <div className={styles.actions}>

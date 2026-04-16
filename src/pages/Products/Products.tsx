@@ -8,7 +8,6 @@ import { CATEGORIES, SIZES, SORT_OPTIONS } from "@/utils/constants";
 import styles from "./Products.module.css";
 
 const MAX_PRICE = 10000;
-const PAGE_LIMIT = 20;
 
 const GRID_CONFIGS: { cols: number; dots: [number, number][] }[] = [
   {
@@ -125,7 +124,11 @@ const Products: React.FC = () => {
   const isOnSale = searchParams.get("isOnSale") === "true";
   const activeSizes = searchParams.getAll("size") as ProductFilters["sizes"];
   const maxPrice = Number(searchParams.get("maxPrice") ?? MAX_PRICE);
+
+  // PAGE_LIMIT dinámico según columnas: 4 filas completas siempre
+  const PAGE_LIMIT = gridCols * 4;
   const totalPages = Math.ceil(total / PAGE_LIMIT);
+
   const hasFilters = !!(
     activeCategory ||
     activeSearch ||
@@ -145,12 +148,16 @@ const Products: React.FC = () => {
         ...(activeSizes?.length && { sizes: activeSizes }),
         ...(maxPrice < MAX_PRICE && { maxPrice }),
         page,
-        limit: PAGE_LIMIT,
+        pageSize: PAGE_LIMIT,
       };
-      const res = await productService.getProducts(filters);
+
+      const res = isOnSale
+        ? await productService.getProductsWithVariants(filters)
+        : await productService.getProducts(filters);
+
       setProducts(res.data);
-      setTotal(res.total);
-    } catch {
+      setTotal(res.total ?? res.data.length);
+    } catch (err) {
       setProducts([]);
       setTotal(0);
     } finally {
@@ -163,12 +170,14 @@ const Products: React.FC = () => {
     isOnSale,
     maxPrice,
     page,
+    PAGE_LIMIT,
     JSON.stringify(activeSizes),
   ]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
   useEffect(() => {
     setPriceInput(String(maxPrice));
   }, [maxPrice]);
@@ -394,50 +403,27 @@ const Products: React.FC = () => {
             style={{ "--cols": gridCols } as React.CSSProperties}
           >
             {products.map((p) => (
-              // ✅ sin onAddToCart — ProductCard maneja todo internamente
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
         )}
 
-        {totalPages > 1 && !loading && (
+        {totalPages > 1 && (
           <div className={styles.pagination}>
             <button
-              disabled={page === 1}
+              disabled={page === 1 || loading}
               onClick={() => goToPage(page - 1)}
-              className={styles.pageBtn}
+              className={styles.pgBtn}
             >
               ← Anterior
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(
-                (p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1,
-              )
-              .reduce<(number | "...")[]>((acc, p, idx, arr) => {
-                if (idx > 0 && p - (arr[idx - 1] as number) > 1)
-                  acc.push("...");
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((item, idx) =>
-                item === "..." ? (
-                  <span key={`ellipsis-${idx}`} className={styles.pageEllipsis}>
-                    …
-                  </span>
-                ) : (
-                  <button
-                    key={item}
-                    onClick={() => goToPage(item as number)}
-                    className={`${styles.pageBtn} ${page === item ? styles.pageBtnOn : ""}`}
-                  >
-                    {item}
-                  </button>
-                ),
-              )}
+            <span className={styles.pgInfo}>
+              Pág. {page} · {total} registros
+            </span>
             <button
-              disabled={page >= totalPages}
+              disabled={page >= totalPages || loading}
               onClick={() => goToPage(page + 1)}
-              className={styles.pageBtn}
+              className={styles.pgBtn}
             >
               Siguiente →
             </button>

@@ -59,11 +59,12 @@ export interface ProductFilters {
   sizes?: Size[]
   colors?: string[]
   isNew?: boolean
-  isSale?: boolean
+  isOnSale?: boolean 
   search?: string
   sortBy?: 'relevance' | 'price_asc' | 'price_desc' | 'newest'
   page?: number
   limit?: number
+  pageSize?: number
 }
 
 export interface ProductsResponse {
@@ -80,6 +81,7 @@ export interface CartItem {
   selectedSize: Size
   selectedColor: ProductColor
   variantImage?: string
+  cartItemId?: string
 }
 
 export interface Cart {

@@ -419,3 +419,40 @@ input[type=range]::-webkit-slider-thumb:hover {
   border-radius: 8px;
   background: #fff;
 }
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.pgBtn {
+  padding: 6px 16px;
+  background: #fff;
+  border: 1px solid #e0ddd7;
+  border-radius: 3px;
+  color: #555;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: .08em;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.pgBtn:hover:not(:disabled) {
+  border-color: #b5914c;
+  color: #b5914c;
+  background: #fdf4e3;
+}
+
+.pgBtn:disabled {
+  opacity: .3;
+  cursor: not-allowed;
+}
+
+.pgInfo {
+  font-size: 11px;
+  color: #bbb;
+  letter-spacing: .05em;
+}

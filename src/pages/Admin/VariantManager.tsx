@@ -16,6 +16,8 @@ interface Variant {
   finalPrice: number;
   imageUrl?: string;
   isActive: boolean;
+  isOnSale: boolean;
+  salePrice: number;
 }
 
 interface ColorGroup {
@@ -29,6 +31,8 @@ interface SizeEntry {
   size: string;
   stock: number;
   priceModifier: number;
+  isOnSale: boolean;
+  salePrice: number;
 }
 
 interface VariantManagerProps {
@@ -166,6 +170,8 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
             size: entry.size,
             stock: entry.stock,
             priceModifier: entry.priceModifier,
+            isOnSale: entry.isOnSale,
+            salePrice: entry.isOnSale ? entry.salePrice : 0,
           }),
         });
         if (!res.ok) throw new Error(`Error al crear talla ${entry.size}`);
@@ -221,6 +227,8 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
         size: v.size ?? "",
         stock: v.stock,
         priceModifier: v.priceModifier,
+        isOnSale: v.isOnSale ?? false,
+        salePrice: v.salePrice ?? 0,
       })),
     );
     setShowNewForm(false);
@@ -251,6 +259,8 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
               size: item.size,
               stock: entry.stock,
               priceModifier: entry.priceModifier,
+              isOnSale: entry.isOnSale,
+              salePrice: entry.isOnSale ? entry.salePrice : 0,
             }),
           },
         );
@@ -304,6 +314,8 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
           size,
           stock: 0,
           priceModifier: editSizes[0]?.priceModifier ?? 0,
+          isOnSale: false,
+          salePrice: 0,
         }),
       });
       if (!res.ok) throw new Error("Error al agregar talla");
@@ -311,7 +323,13 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
       setVariants((prev) => [...prev, newVariant]);
       setEditSizes((prev) => [
         ...prev,
-        { size, stock: 0, priceModifier: editSizes[0]?.priceModifier ?? 0 },
+        {
+          size,
+          stock: 0,
+          priceModifier: editSizes[0]?.priceModifier ?? 0,
+          isOnSale: false,
+          salePrice: 0,
+        },
       ]);
     } catch (err: any) {
       setError(err.message ?? "Error al agregar talla.");
@@ -362,14 +380,17 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
     setNewSizes((prev) =>
       prev.find((e) => e.size === size)
         ? prev.filter((e) => e.size !== size)
-        : [...prev, { size, stock: 0, priceModifier: 0 }],
+        : [
+            ...prev,
+            { size, stock: 0, priceModifier: 0, isOnSale: false, salePrice: 0 },
+          ],
     );
   };
 
   const updateNewSizeEntry = (
     size: string,
-    field: "stock" | "priceModifier",
-    value: number,
+    field: "stock" | "priceModifier" | "isOnSale" | "salePrice",
+    value: number | boolean,
   ) => {
     setNewSizes((prev) =>
       prev.map((e) => (e.size === size ? { ...e, [field]: value } : e)),
@@ -378,8 +399,8 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
 
   const updateEditSizeEntry = (
     size: string,
-    field: "stock" | "priceModifier",
-    value: number,
+    field: "stock" | "priceModifier" | "isOnSale" | "salePrice",
+    value: number | boolean,
   ) => {
     setEditSizes((prev) =>
       prev.map((e) => (e.size === size ? { ...e, [field]: value } : e)),
@@ -521,7 +542,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
             </div>
           </div>
 
-          {/* Tabla stock + modificador por talla */}
+          {/* Tabla stock + modificador + rebajas por talla */}
           {newSizes.length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <div className={styles.sizeTableHeader}>
@@ -529,12 +550,14 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
                 <span style={{ flex: 1 }}>Stock</span>
                 <span style={{ flex: 1 }}>Modificador (MXN)</span>
                 <span style={{ flex: 1 }}>Precio final</span>
+                <span style={{ width: 72 }}>En rebaja</span>
+                <span style={{ flex: 1 }}>Precio rebaja</span>
               </div>
               <div className={styles.sizesList}>
                 {newSizes.map((entry) => (
                   <div
                     key={entry.size}
-                    className={`${styles.sizeRow} ${styles.sizeRowActive}`}
+                    className={`${styles.sizeRow} ${styles.sizeRowActive} ${entry.isOnSale ? styles.sizeRowSale : ""}`}
                   >
                     <span className={styles.sizeTableLabel}>{entry.size}</span>
                     <input
@@ -568,6 +591,53 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
                     <span className={styles.sizeTablePrice}>
                       ${(basePrice + entry.priceModifier).toFixed(2)}
                     </span>
+
+                    {/* Toggle rebaja */}
+                    <div
+                      style={{
+                        width: 72,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <label className={styles.saleToggle}>
+                        <input
+                          type="checkbox"
+                          checked={entry.isOnSale}
+                          onChange={(e) =>
+                            updateNewSizeEntry(
+                              entry.size,
+                              "isOnSale",
+                              e.target.checked,
+                            )
+                          }
+                        />
+                        <span className={styles.saleToggleTrack} />
+                      </label>
+                    </div>
+
+                    {/* Campo precio rebaja — visible solo si isOnSale */}
+                    {entry.isOnSale ? (
+                      <input
+                        className={styles.stockInput}
+                        type="number"
+                        step={0.01}
+                        min={0}
+                        placeholder="0.00"
+                        value={entry.salePrice}
+                        onChange={(e) =>
+                          updateNewSizeEntry(
+                            entry.size,
+                            "salePrice",
+                            Number(e.target.value),
+                          )
+                        }
+                        style={{ flex: 1 }}
+                      />
+                    ) : (
+                      <span style={{ flex: 1 }} />
+                    )}
                   </div>
                 ))}
               </div>
@@ -654,6 +724,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
               ? editSizes.map((e) => e.size)
               : group.items.map((v) => v.size ?? "");
             const availableSizes = SIZES.filter((s) => !usedSizes.includes(s));
+            const anyOnSale = group.items.some((v) => v.isOnSale);
 
             return (
               <div
@@ -679,6 +750,9 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
                       <span className={styles.stockBadge}>
                         {totalStock(group.items)} Unidades Disponibles
                       </span>
+                      {anyOnSale && (
+                        <span className={styles.saleBadge}>En rebaja</span>
+                      )}
                     </div>
                     <div className={styles.groupPrice}>
                       {priceRange(group.items, basePrice)} MXN
@@ -687,7 +761,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
                       {group.items.map((v) => (
                         <span
                           key={v.id}
-                          className={`${styles.sizeChip} ${v.stock === 0 ? styles.sizeChipZero : ""}`}
+                          className={`${styles.sizeChip} ${v.stock === 0 ? styles.sizeChipZero : ""} ${v.isOnSale ? styles.sizeChipSale : ""}`}
                         >
                           <span className={styles.sizeChipLabel}>{v.size}</span>
                           <span className={styles.sizeChipStock}>
@@ -808,6 +882,8 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
                         <span style={{ flex: 1 }}>Stock</span>
                         <span style={{ flex: 1 }}>Modificador (MXN)</span>
                         <span style={{ flex: 1 }}>Precio final</span>
+                        <span style={{ width: 72 }}>En rebaja</span>
+                        <span style={{ flex: 1 }}>Precio rebaja</span>
                         <span style={{ width: 36 }} />
                       </div>
                       <div className={styles.sizesList}>
@@ -818,7 +894,7 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
                           return (
                             <div
                               key={entry.size}
-                              className={`${styles.sizeRow} ${styles.sizeRowActive}`}
+                              className={`${styles.sizeRow} ${styles.sizeRowActive} ${entry.isOnSale ? styles.sizeRowSale : ""}`}
                             >
                               <span className={styles.sizeTableLabel}>
                                 {entry.size}
@@ -854,6 +930,54 @@ export const VariantManager: React.FC<VariantManagerProps> = ({
                               <span className={styles.sizeTablePrice}>
                                 ${(basePrice + entry.priceModifier).toFixed(2)}
                               </span>
+
+                              {/* Toggle rebaja */}
+                              <div
+                                style={{
+                                  width: 72,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                }}
+                              >
+                                <label className={styles.saleToggle}>
+                                  <input
+                                    type="checkbox"
+                                    checked={entry.isOnSale}
+                                    onChange={(e) =>
+                                      updateEditSizeEntry(
+                                        entry.size,
+                                        "isOnSale",
+                                        e.target.checked,
+                                      )
+                                    }
+                                  />
+                                  <span className={styles.saleToggleTrack} />
+                                </label>
+                              </div>
+
+                              {/* Campo precio rebaja — visible solo si isOnSale */}
+                              {entry.isOnSale ? (
+                                <input
+                                  className={styles.stockInput}
+                                  type="number"
+                                  step={0.01}
+                                  min={0}
+                                  placeholder="0.00"
+                                  value={entry.salePrice}
+                                  onChange={(e) =>
+                                    updateEditSizeEntry(
+                                      entry.size,
+                                      "salePrice",
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                  style={{ flex: 1 }}
+                                />
+                              ) : (
+                                <span style={{ flex: 1 }} />
+                              )}
+
                               {variant && (
                                 <button
                                   className={styles.deleteBtn}

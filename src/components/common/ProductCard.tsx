@@ -14,7 +14,7 @@ interface ProductCardProps {
   onAddToCart?: (product: Product) => void;
 }
 
-// ── groupByColor: no descarta variantes por falta de imageUrl ─────────────────
+// ── groupByColor: busca el primer imageUrl disponible entre todas las variantes del color ──
 function groupByColor(variants: ProductVariant[]) {
   const map = new Map<
     string,
@@ -22,7 +22,7 @@ function groupByColor(variants: ProductVariant[]) {
   >();
   for (const v of variants) {
     if (!v.isActive) continue;
-    if (!v.color) continue; // solo requiere color, imageUrl y colorHex son opcionales
+    if (!v.color) continue;
     if (!map.has(v.color)) {
       map.set(v.color, {
         colorHex: v.colorHex ?? "#888",
@@ -30,7 +30,12 @@ function groupByColor(variants: ProductVariant[]) {
         variants: [],
       });
     }
-    map.get(v.color)!.variants.push(v);
+    const entry = map.get(v.color)!;
+    // ✅ Fix: actualizar imageUrl si aún no tenemos uno y esta variante sí tiene
+    if (!entry.imageUrl && v.imageUrl) {
+      entry.imageUrl = v.imageUrl;
+    }
+    entry.variants.push(v);
   }
   return Array.from(map.entries()).map(([color, data]) => ({ color, ...data }));
 }
@@ -103,7 +108,6 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({
       .map((v) => v.size) ?? [],
   );
 
-  // Stock máximo de la variante seleccionada
   const maxStock = selectedSize
     ? (activeGroup?.variants.find((v) => v.size === selectedSize)?.stock ?? 99)
     : 99;
@@ -442,7 +446,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     setLoadingVariants(true);
     productService
       .getVariants(product.id)
-      .then((data) => setVariants(Array.isArray(data) && data.length > 0 ? data : (product.variants ?? [])))
+      .then((data) =>
+        setVariants(
+          Array.isArray(data) && data.length > 0
+            ? data
+            : (product.variants ?? []),
+        ),
+      )
       .catch(() => setVariants(product.variants ?? []))
       .finally(() => setLoadingVariants(false));
   }, [product.id]);
@@ -451,6 +461,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   const activeGroup = colorGroups[activeColorIdx];
   const activeImage = activeGroup?.imageUrl || product.imageUrl;
   const activeBg = activeGroup?.colorHex ?? "#f2f0ec";
+
+  // ✅ Calculado desde precios, sin depender de isSale del backend
+  const discountPct =
+    product.originalPrice && product.originalPrice > product.price
+      ? Math.round((1 - product.price / product.originalPrice) * 100)
+      : null;
 
   const requireAuth = (reason: string, action: () => void) => {
     if (!isAuthenticated) {
@@ -501,6 +517,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     <>
       <article className={styles.card}>
         <div className={styles.imgWrap}>
+          {/* Banner de oferta en la parte superior de la imagen */}
+          {discountPct !== null && (
+            <div className={styles.saleBanner}>{discountPct}% OFF</div>
+          )}
+
           <div className={styles.imgInner} style={{ background: activeBg }}>
             <img
               src={activeImage}
@@ -517,10 +538,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             {product.isNew && (
               <span className={`${styles.badge} ${styles.new}`}>Nuevo</span>
             )}
-            {product.isSale && product.originalPrice && (
+            {discountPct !== null && (
               <span className={`${styles.badge} ${styles.sale}`}>
-                -{Math.round((1 - product.price / product.originalPrice) * 100)}
-                %
+                -{discountPct}%
               </span>
             )}
           </div>
